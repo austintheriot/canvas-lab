@@ -4,5 +4,11 @@
 @import 'styles/_mixins.scss';
 
 .App {
-	text-align: center;
+	canvas {
+		display: block;
+		width: 500px;
+		height: 500px;
+		border: 1px solid black;
+		margin: 50px auto;
+	}
 }
