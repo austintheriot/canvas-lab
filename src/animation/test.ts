@@ -74,6 +74,6 @@ export class Animation {
 
 	public animate() {
 		this._init();
-		window.requestAnimationFrame(() => this._draw());
+		this._draw();
 	}
 }
