@@ -7,12 +7,12 @@ class Particle {
 	speed: number;
 
 	constructor(ctx: CanvasRenderingContext2D) {
-		this.x = Math.random() * 499;
-		this.y = Math.random() * 499;
+		this.x = Math.round(Math.random() * 499);
+		this.y = Math.round(Math.random() * 499);
 		this.radius = 1;
 		this.color = '#000000';
 		this.ctx = ctx;
-		this.speed = Math.random() * 5;
+		this.speed = Math.round(Math.random() * 5);
 	}
 
 	private _clampValue(min: number, value: number, max: number): number {
@@ -22,7 +22,9 @@ class Particle {
 	private _randomWalk(currentPosition: number) {
 		return this._clampValue(
 			0,
-			currentPosition + (Math.random() * this.speed - this.speed / 2),
+			Math.round(
+				currentPosition + (Math.random() * this.speed - this.speed / 2)
+			),
 			500
 		);
 	}
