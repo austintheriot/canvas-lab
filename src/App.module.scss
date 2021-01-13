@@ -6,8 +6,10 @@
 .App {
 	canvas {
 		display: block;
-		width: 500px;
-		height: 500px;
+		width: 95vw;
+		max-width: 500px;
+		height: 95vw;
+		max-height: 500px;
 		border: 1px solid black;
 		margin: 50px auto;
 	}

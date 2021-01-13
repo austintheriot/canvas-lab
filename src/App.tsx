@@ -1,23 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import styles from './App.module.scss';
-import { Animation } from 'animation/test';
+import { useAnimation } from 'hooks/useAnimation';
+import { BrownianMotion } from './animations/BrownianMotion';
 
-function App() {
-	const canvas = useRef<HTMLCanvasElement | null>(null);
-
-	useEffect(() => {
-		if (canvas.current == null) return;
-		const animation = new Animation(canvas.current);
-		animation.animate();
-
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [canvas]);
-
-	return (
-		<div className={styles.App}>
-			<canvas ref={canvas}></canvas>
-		</div>
-	);
-}
-
-export default App;
+export const App = () => {
+	return <div className={styles.App}>{useAnimation(BrownianMotion)}</div>;
+};
