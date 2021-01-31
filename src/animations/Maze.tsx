@@ -135,8 +135,7 @@ class Cell {
 }
 
 interface Options {
-  rows?: number;
-  cols?: number;
+  size?: number;
 }
 
 export class MazeAnimation extends Animation {
@@ -148,9 +147,9 @@ export class MazeAnimation extends Animation {
     super(canvas);
     
     //build array of cells
-    this.array = new Array(options?.rows ?? 10).fill(null);
+    this.array = new Array(options?.size ?? 10).fill(null);
     for (let col = 0; col < this.array.length; col++){
-      this.array[col] = new Array(options?.cols ?? 10).fill(null);
+      this.array[col] = new Array(options?.size ?? 10).fill(null);
       const innerArray = this.array[col];
       for (let row = 0; row < innerArray.length; row++){
         innerArray[row] = new Cell(this.ctx, {
@@ -160,6 +159,10 @@ export class MazeAnimation extends Animation {
         });
       }
     }
+
+    //make entrance/exit
+    this.array[0][0].northWall = false;
+    this.array[this.array.length - 1][this.array.length - 1].southWall = false;
 
     this.stack = new Stack();
     const randomCol = Math.floor(Math.random() * this.array.length);
@@ -214,6 +217,9 @@ export class MazeAnimation extends Animation {
 }
 
 export function Maze() {
-	const [canvas] = useAnimation(MazeAnimation);
+  const options = {
+    size: 25,
+  }
+	const [canvas] = useAnimation(MazeAnimation, options);
   return canvas;
 }
