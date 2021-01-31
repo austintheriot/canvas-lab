@@ -85,7 +85,8 @@ class Cell {
     this.ctx = params.ctx;
 
     //animations
-    this.generationIncrement = 10;
+    //the more animations, the faster the generationAnimations need to end
+    this.generationIncrement = this.maze.dimensions / 10;
     this.solveIncrement = 1;
     this.defaultWallColor = params.defaultWallColor ?? new Uint8ClampedArray([0, 0, 0]);
     this.newWallColor = params.newWallColor ?? new Uint8ClampedArray([25, 178, 255]);
@@ -301,8 +302,8 @@ export class MazeAnimation extends Animation {
   generationsPerFrame: number;
   generationStack: Stack; 
   animationQueue: Queue;
-  generationDone: boolean;
-  solveDone: boolean;
+  isGenerating: boolean;
+  isSolving: boolean;
 
 	constructor(canvas: HTMLCanvasElement, options: MazeOptions) {
     super(canvas);
@@ -315,8 +316,8 @@ export class MazeAnimation extends Animation {
     this.animationQueue = new Queue(); //used for processing necessary animations
 
     //which portion of the animation is complete
-    this.generationDone = false;
-    this.solveDone = false;
+    this.isGenerating = true;
+    this.isSolving = true;
 
     //make canvas background white 
     this.ctx.fillStyle = 'white';
@@ -397,7 +398,7 @@ export class MazeAnimation extends Animation {
       }
     } else {
       //if stack is empty, stop trying to generate new cells
-      this.generationDone = true;
+      this.isGenerating = false;
     }
   }
 
@@ -433,7 +434,7 @@ export class MazeAnimation extends Animation {
       dequeuedCell.solveVisited = true;
 
       if (dequeuedCell === endCell) {
-        this.solveDone = true;
+        this.isSolving = false;
 
         //trace path backawards and add to array
         const solvePath: Cell[] = [];
@@ -476,14 +477,14 @@ export class MazeAnimation extends Animation {
   */
   animate() {
     //generate maze--runs first
-    if (!this.generationDone) {
+    if (this.isGenerating) {
       for (let i = 0; i < this.generationsPerFrame; i++){
         this.generateMaze();
       }
     }
     
     //solve maze--runs second
-    if (this.generationDone && !this.solveDone) {
+    if (!this.isGenerating && this.isSolving) {
       const solvePath = this.solveMaze()
       solvePath.forEach((cell) => {
         cell.addSolveAnimationToQueue();
@@ -503,8 +504,8 @@ export class MazeAnimation extends Animation {
 */
 export function Maze() {
   const options = {
-    dimensions: 100,
-    generationsPerFrame: 1,
+    dimensions: 25,
+    generationsPerFrame: 5,
   }
 	const [canvas] = useAnimation(MazeAnimation, options);
   return canvas;
