@@ -14,7 +14,7 @@ export const useAnimation = (Animation: any, animationOptions?: any) => {
 	}, []);
 
 	useEffect(() => {
-		if (animation) animation.updateValues(animationOptions);
+		if (animation && animationOptions) animation.updateValues(animationOptions);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [animationOptions]);
 
