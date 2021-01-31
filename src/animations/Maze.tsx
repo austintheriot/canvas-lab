@@ -1,7 +1,6 @@
 import { Animation } from '../classes/Animation';
 import { useAnimation } from '../hooks/useAnimation';
 import { Stack } from 'classes/Stack';
-import { shuffleArray } from 'functions/shuffleArray';
 
 // create maze data structure
 // display maze
@@ -25,10 +24,12 @@ interface CellOptions {
   col: number;
   row: number;
   array: Cell[][];
-  size?: number;
+  dimensions?: number;
+  offset?: number;
 }
 
 class Cell {
+  //maze properties
   array: Cell[][];
   col: number;
   row: number;
@@ -40,14 +41,16 @@ class Cell {
   
   visited: boolean;
   
+  //canvas properties
   ctx: CanvasRenderingContext2D;
-  size: number;
+  offset: number;
+  dimensions: number;
   TLC: number; //top left col
   TLR: number; //top left row
-  TRC: number;
+  TRC: number; //etc
   TRR: number;
-  BRC: number; //bottom right col
-  BRR: number; //bottom right row
+  BRC: number; 
+  BRR: number; 
   BLC: number;
   BLR: number;
 
@@ -67,15 +70,14 @@ class Cell {
 
     //drawing properties
     this.ctx = ctx;
-    // slightly offset so wall lines aren't cut off
-    const OFFSET = 20;
-    this.size = Math.floor(options.size ?? ((500 - OFFSET) / this.array.length)); 
-    this.TLC = Math.floor(OFFSET / 2) + this.col * this.size;
-    this.TLR = Math.floor(OFFSET / 2) + this.row * this.size;
-    this.TRC = this.TLC + this.size;
+    this.offset = Math.floor(options.offset ?? 20); // slightly offset so wall lines aren't cut off
+    this.dimensions = Math.floor(options.dimensions ?? ((500 - this.offset) / this.array.length)); 
+    this.TLC = Math.floor(this.offset / 2) + this.col * this.dimensions;
+    this.TLR = Math.floor(this.offset / 2) + this.row * this.dimensions;
+    this.TRC = this.TLC + this.dimensions;
     this.TRR = this.TLR;
     this.BRC = this.TRC;
-    this.BRR = this.TLR + this.size;
+    this.BRR = this.TLR + this.dimensions;
     this.BLC = this.TLC;
     this.BLR = this.BRR;
   }
@@ -130,7 +132,7 @@ class Cell {
 
   drawCell() {
     this.ctx.fillStyle = 'white';
-    this.ctx.fillRect(this.TLC, this.TLR, this.size, this.size);
+    this.ctx.fillRect(this.TLC, this.TLR, this.dimensions, this.dimensions);
     this.ctx.beginPath();
     if (this.northWall) {
       this.ctx.moveTo(this.TLC, this.TLR);
@@ -153,8 +155,8 @@ class Cell {
 	}
 }
 
-interface Options {
-  size?: number;
+interface MazeOptions {
+  dimensions?: number;
   lineWidth?: number;
 }
 
@@ -162,19 +164,17 @@ export class MazeAnimation extends Animation {
   array: Cell[][];
   stack: Stack;
   firstCell: Cell;
-  render: number;
-  drawFrames: number;
+  dimensions: number;
 
-	constructor(canvas: HTMLCanvasElement, options: Options) {
+	constructor(canvas: HTMLCanvasElement, options: MazeOptions) {
     super(canvas);
     this.ctx.lineWidth = Math.floor(options?.lineWidth ?? 2);
-    this.render = 0;
-    this.drawFrames = 2;
+    this.dimensions = Math.max(options.dimensions ?? 10, 1); //default to 10, but never less than 1
     
     //build array of cells
-    this.array = new Array(options?.size ?? 10).fill(null);
+    this.array = new Array(this.dimensions).fill(null);
     for (let col = 0; col < this.array.length; col++){
-      this.array[col] = new Array(options?.size ?? 10).fill(null);
+      this.array[col] = new Array(this.dimensions).fill(null);
       const innerArray = this.array[col];
       for (let row = 0; row < innerArray.length; row++){
         innerArray[row] = new Cell(this.ctx, {
@@ -185,7 +185,7 @@ export class MazeAnimation extends Animation {
       }
     }
 
-    //make entrance/exit
+    //make entrance top left & bottom right
     this.array[0][0].northWall = false;
     this.array[this.array.length - 1][this.array.length - 1].southWall = false;
 
@@ -241,7 +241,7 @@ export class MazeAnimation extends Animation {
 
 export function Maze() {
   const options = {
-    size: 20,
+    dimensions: 20,
   }
 	const [canvas] = useAnimation(MazeAnimation, options);
   return canvas;
