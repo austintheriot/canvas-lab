@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Particle } from '../classes/Particle';
 import { Animation } from '../classes/Animation';
-import { clampValue } from 'functions/clampValue';
+import { clampValue } from 'utils/clampValue';
 import { useAnimation } from 'hooks/useAnimation';
 import { cloneDeep } from 'lodash';
 

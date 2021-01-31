@@ -1,7 +1,7 @@
 import { Animation } from '../classes/Animation';
 import { useAnimation } from '../hooks/useAnimation';
 import { Stack } from 'classes/Stack';
-import { arrayToRGB } from 'functions/arrayToRGB';
+import { arrayToRGB } from 'utils/arrayToRGB';
 import { Queue } from 'classes/Queue';
 
 // create maze data structure

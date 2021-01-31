@@ -1,7 +1,7 @@
 import { Animation } from '../classes/Animation';
 import { useAnimation } from '../hooks/useAnimation';
 import { Queue } from 'classes/Queue';
-import { shuffleArray } from 'functions/shuffleArray';
+import { shuffleArray } from 'utils/shuffleArray';
 
 /* 
 

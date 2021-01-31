@@ -1,4 +1,4 @@
-import { clampValue } from 'functions/clampValue';
+import { clampValue } from 'utils/clampValue';
 
 export interface Options {
 	color?: string;

@@ -1,6 +1,6 @@
 import { Particle } from '../classes/Particle';
 import { Animation } from '../classes/Animation';
-import { clampValue } from 'functions/clampValue';
+import { clampValue } from 'utils/clampValue';
 import { isContext } from 'vm';
 
 const weightsToProbs = (weights: number[]) => {
