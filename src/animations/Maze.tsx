@@ -1,7 +1,7 @@
 import { Animation } from '../classes/Animation';
 import { useAnimation } from '../hooks/useAnimation';
 import { Stack } from 'classes/Stack';
-import { first } from 'lodash';
+import { shuffleArray } from 'functions/shuffleArray';
 
 // create maze data structure
 // display maze
@@ -11,12 +11,21 @@ import { first } from 'lodash';
 //getN, getE, getS, getW
 //build 
 
+interface AnyNeighbor {
+  cell: Cell | null,
+ direction: 'north' | 'east' | 'south' | 'west',
+}
+
+interface CellNeighbor {
+  cell: Cell,
+ direction: 'north' | 'east' | 'south' | 'west',
+}
+
 interface CellOptions {
   col: number;
   row: number;
   array: Cell[][];
   size?: number;
-  thickness?: number;
 }
 
 class Cell {
@@ -33,11 +42,14 @@ class Cell {
   
   ctx: CanvasRenderingContext2D;
   size: number;
-  thicknesss: number;
-  col1: number; //top left 
-  row1: number; //top left
-  col2: number; //bottom right
-  row2: number; //bottom right
+  TLC: number; //top left col
+  TLR: number; //top left row
+  TRC: number;
+  TRR: number;
+  BRC: number; //bottom right col
+  BRR: number; //bottom right row
+  BLC: number;
+  BLR: number;
 
 
   constructor(ctx: CanvasRenderingContext2D, options: CellOptions) {
@@ -55,16 +67,21 @@ class Cell {
 
     //drawing properties
     this.ctx = ctx;
-    this.size = options.size ?? 500 / this.array.length;
-    this.thicknesss = options.thickness ?? 1;
-    this.col1 = this.col * this.size;
-    this.row1 = this.row * this.size;
-    this.col2 = this.col1 + this.size;
-    this.row2 = this.row1 + this.size;
+    // slightly offset so wall lines aren't cut off
+    const OFFSET = 20;
+    this.size = Math.floor(options.size ?? ((500 - OFFSET) / this.array.length)); 
+    this.TLC = Math.floor(OFFSET / 2) + this.col * this.size;
+    this.TLR = Math.floor(OFFSET / 2) + this.row * this.size;
+    this.TRC = this.TLC + this.size;
+    this.TRR = this.TLR;
+    this.BRC = this.TRC;
+    this.BRR = this.TLR + this.size;
+    this.BLC = this.TLC;
+    this.BLR = this.BRR;
   }
 
   getNorthNode(): Cell | null {
-    return (this.array[this.col] && this.array[this.col][this.row - 1]) ?? null;
+    return this.array[this.col][this.row - 1] ?? null;
   }
 
   getEastNode(): Cell | null {
@@ -72,7 +89,7 @@ class Cell {
   }
 
   getSouthNode(): Cell | null {
-    return (this.array[this.col] && this.array[this.col][this.row + 1]) ?? null;
+    return this.array[this.col][this.row + 1] ?? null;
   }
 
   getWestNode(): Cell | null {
@@ -81,70 +98,78 @@ class Cell {
 
   getAllNeighbors() {
     return [{
-        cell: this.getNorthNode(),
-        direction: 'north',
-      }, {
-        cell: this.getEastNode(),
-        direction: 'east',
-      }, {
-        cell: this.getSouthNode(),
-        direction: 'south',
-      }, {
-        cell: this.getWestNode(),
-        direction: 'west',
-      },
-    ]
+      cell: this.getNorthNode(),
+      direction: 'north',
+    }, {
+      cell: this.getEastNode(),
+      direction: 'east',
+    }, {
+      cell: this.getSouthNode(),
+      direction: 'south',
+    }, {
+      cell: this.getWestNode(),
+      direction: 'west',
+    },
+    ] as AnyNeighbor[];
   }
 
-  shuffleArray<T>(arr: T[]): T[] {
-    for (let i = 0; i < arr.length; i++) {
-      const j = Math.floor(i + Math.random() * (arr.length - i));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+  getUnvisitedNeighbbors(): CellNeighbor[] {
+    const cellNighbors = this.getAllNeighbors().filter((neighbor) => neighbor.cell !== null) as unknown as CellNeighbor[];
+    const unvisitedNeighbors = cellNighbors.filter((object) => object.cell.visited === false);
+    return unvisitedNeighbors;
   }
 
-  getRandomUnvisitedNeighbor(): { cell: Cell, direction: 'north' | 'east' | 'south' | 'west'}[] {
-    const unvisitedNeighbors = this.getAllNeighbors().filter((object) => object.cell !== null && object.cell.visited === false) as unknown as { cell: Cell, direction: 'north' | 'east' | 'south' | 'west' }[];
-    return this.shuffleArray(unvisitedNeighbors);
-  }
-
-  drawLine(x1: number, y1: number, x2: number, y2: number) {
+  drawLine(wall: boolean, x1: number, y1: number, x2: number, y2: number) {
     this.ctx.beginPath();
     this.ctx.moveTo(x1, y1);   
     this.ctx.lineTo(x2, y2);   
     this.ctx.closePath();
-    this.ctx.lineWidth = this.thicknesss;
+    this.ctx.strokeStyle = wall ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)';
     this.ctx.stroke();
   }
 
   drawCell() {
-    if (this.northWall && this.visited) {
-      this.drawLine(this.col1, this.row1, this.col1 + this.size, this.row1);
+    this.ctx.fillStyle = 'white';
+    this.ctx.fillRect(this.TLC, this.TLR, this.size, this.size);
+    this.ctx.beginPath();
+    if (this.northWall) {
+      this.ctx.moveTo(this.TLC, this.TLR);
+      this.ctx.lineTo(this.TRC, this.TRR);
     }
-    if (this.eastWall && this.visited) {
-      this.drawLine(this.col1 + this.size, this.row1, this.col1 + this.size, this.row1 + this.size);
+    if (this.eastWall) {
+      this.ctx.moveTo(this.TRC, this.TRR);
+      this.ctx.lineTo(this.BRC, this.BRR);
     }
-    if (this.southWall && this.visited) {
-      this.drawLine(this.col1, this.row1 + this.size, this.col1 + this.size, this.row1 + this.size);
+    if (this.southWall) {
+      this.ctx.moveTo(this.BRC, this.BRR);
+      this.ctx.lineTo(this.BLC, this.BLR);
     }
-    if (this.westWall && this.visited) {
-      this.drawLine(this.col1, this.row1, this.col1, this.row1 + this.size);
+    if (this.westWall) {
+      this.ctx.moveTo(this.BLC, this.BLR);
+      this.ctx.lineTo(this.TLC, this.TLR);
     }
+    this.ctx.closePath();
+    this.ctx.stroke();
 	}
 }
 
 interface Options {
   size?: number;
+  lineWidth?: number;
 }
 
 export class MazeAnimation extends Animation {
   array: Cell[][];
   stack: Stack;
   firstCell: Cell;
+  render: number;
+  drawFrames: number;
 
 	constructor(canvas: HTMLCanvasElement, options: Options) {
     super(canvas);
+    this.ctx.lineWidth = Math.floor(options?.lineWidth ?? 2);
+    this.render = 0;
+    this.drawFrames = 2;
     
     //build array of cells
     this.array = new Array(options?.size ?? 10).fill(null);
@@ -172,16 +197,18 @@ export class MazeAnimation extends Animation {
     //initialize stack
     this.stack.push(this.firstCell);
     this.firstCell.visited = true;
+
+    //clear canvas
+    this.ctx.clearRect(0, 0, 500, 500); 
 	}
   
   visitNeighbor() {
     if (!this.stack.isEmpty()) {
       const currentCell: Cell = this.stack.pop();
-      console.log('currentCell', currentCell);
-      const unvisitedNeighbors = currentCell.getRandomUnvisitedNeighbor()
-      if (unvisitedNeighbors.length) {
+      const unvisitedNeighbors = currentCell.getUnvisitedNeighbbors()
+      if (unvisitedNeighbors.length > 0) {
         this.stack.push(currentCell);
-        const neighbor = unvisitedNeighbors.pop();
+        const neighbor = unvisitedNeighbors[Math.floor(Math.random() * unvisitedNeighbors.length)];
         if (!neighbor) return;
         // this is the new cell's direction in reference to the 
         // cell that was just popped off of the stack
@@ -199,26 +226,22 @@ export class MazeAnimation extends Animation {
           neighbor.cell!.eastWall = false;
         }
         neighbor.cell.visited = true;
+        currentCell.drawCell();
+        neighbor.cell.drawCell();
         this.stack.push(neighbor.cell);
       }
     }
   }
 
 	animate() {
-    this.ctx.clearRect(0, 0, 500, 500); 
     this.visitNeighbor();
-    this.array.forEach((innerArray) => {
-      innerArray.forEach((cell) => {
-        cell.drawCell();
-      })
-    })
 		window.requestAnimationFrame(() => this.animate());
 	}
 }
 
 export function Maze() {
   const options = {
-    size: 25,
+    size: 20,
   }
 	const [canvas] = useAnimation(MazeAnimation, options);
   return canvas;
