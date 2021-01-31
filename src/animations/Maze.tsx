@@ -25,7 +25,6 @@ interface CellOptions {
   maze: MazeAnimation;
   col: number;
   row: number;
-  dimensions?: number;
   offset?: number;
   colorArray?: Uint8ClampedArray;
 }
@@ -43,7 +42,7 @@ class Cell {
   
   //canvas properties
   ctx: CanvasRenderingContext2D;
-  dimensions: number;
+  cellWidth: number;
   colorArray: Uint8ClampedArray;
   TLC: number; //top left col
   TLR: number; //top left row
@@ -69,13 +68,14 @@ class Cell {
     //drawing properties
     this.ctx = ctx;
     this.colorArray =  options.colorArray ?? new Uint8ClampedArray([0, 0, 0]);
-    this.dimensions = Math.floor(options.dimensions ?? ((500 - this.maze.padding) / this.maze.array.length)); 
-    this.TLC = Math.floor(this.maze.padding / 2) + this.col * this.dimensions;
-    this.TLR = Math.floor(this.maze.padding / 2) + this.row * this.dimensions;
-    this.TRC = this.TLC + this.dimensions;
+    this.cellWidth = Math.floor((500 - this.maze.padding) / this.maze.array.length); 
+    const paddingRoundingeError = 500 - (this.cellWidth * this.maze.array.length);
+    this.TLC = Math.floor(this.maze.padding / 2) + paddingRoundingeError / 2 + this.col * this.cellWidth;
+    this.TLR = Math.floor(this.maze.padding / 2) + paddingRoundingeError / 2 + this.row * this.cellWidth;
+    this.TRC = this.TLC + this.cellWidth;
     this.TRR = this.TLR;
     this.BRC = this.TRC;
-    this.BRR = this.TLR + this.dimensions;
+    this.BRR = this.TLR + this.cellWidth;
     this.BLC = this.TLC;
     this.BLR = this.BRR;
   }
@@ -124,7 +124,7 @@ class Cell {
 
   drawCell() {
     this.ctx.fillStyle = 'white';
-    this.ctx.fillRect(this.TLC, this.TLR, this.dimensions, this.dimensions);
+    this.ctx.fillRect(this.TLC, this.TLR, this.cellWidth, this.cellWidth);
     this.ctx.beginPath();
     if (this.northWall) {
       this.ctx.moveTo(this.TLC, this.TLR);
@@ -152,6 +152,7 @@ interface MazeOptions {
   dimensions?: number;
   lineWidth?: number;
   padding?: number;
+  visitsPerFrame: number;
 }
 
 export class MazeAnimation extends Animation {
@@ -160,12 +161,14 @@ export class MazeAnimation extends Animation {
   firstCell: Cell;
   dimensions: number;
   padding: number;
+  visitsPerFrame: number;
 
 	constructor(canvas: HTMLCanvasElement, options: MazeOptions) {
     super(canvas);
+    this.visitsPerFrame = options.visitsPerFrame ?? 10;
     this.ctx.lineWidth = Math.floor(options?.lineWidth ?? 2);
     this.dimensions = Math.max(options.dimensions ?? 10, 1); //default to 10, but never less than 1
-    this.padding = Math.floor(options.padding ?? 20); // slightly offset so wall lines aren't cut off
+    this.padding = Math.floor(options.padding ?? 4); // slightly offset so wall lines aren't cut off
     
     //build array of cells
     this.array = new Array(this.dimensions).fill(null);
@@ -230,14 +233,17 @@ export class MazeAnimation extends Animation {
   }
 
 	animate() {
-    this.visitNeighbor();
+    for (let i = 0; i < this.visitsPerFrame; i++){
+      this.visitNeighbor();
+    }
 		window.requestAnimationFrame(() => this.animate());
 	}
 }
 
 export function Maze() {
   const options = {
-    dimensions: 20,
+    dimensions: 50,
+    visitsPerFrame: 20,
   }
 	const [canvas] = useAnimation(MazeAnimation, options);
   return canvas;
