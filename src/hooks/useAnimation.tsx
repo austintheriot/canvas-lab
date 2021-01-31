@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-export const useAnimation = (Animation: any, animationOptions?: any) => {
+export const useAnimation = (Animation: any, animationOptions?: any, updateValues?: boolean) => {
 	const canvas = useRef<HTMLCanvasElement | null>(null);
 	const [animation, setAnimation] = useState<any | null>(null);
 
@@ -14,7 +14,7 @@ export const useAnimation = (Animation: any, animationOptions?: any) => {
 	}, []);
 
 	useEffect(() => {
-		if (animation && animationOptions) animation.updateValues(animationOptions);
+		if (animationOptions && updateValues) animation.updateValues(animationOptions);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [animationOptions]);
 
