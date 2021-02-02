@@ -5,7 +5,9 @@ import { arrayToRGB } from 'utils/arrayToRGB';
 import { Queue } from 'classes/Queue';
 
 const ELETRIC_BLUE = [25, 178, 255];
-const LIGHT_YELLOW = [255, 247, 201];
+const LIGHT_BLUE = [201, 239, 255];
+const LIGHT_YELLOW = [255, 251, 189];
+const DARK_BLUE = [0, 74, 105];
 const WHITE = [255, 255, 255];
 const BLACK = [0, 0, 0];
 
@@ -27,12 +29,13 @@ interface CellParams {
 	row: number;
 
 	offset?: number;
-	newWallColor?: Uint8ClampedArray;
+	generationWallColor?: Uint8ClampedArray;
 	defaultWallColor?: Uint8ClampedArray;
 	currentWallColor?: Uint8ClampedArray;
 	solvedFillColor?: Uint8ClampedArray;
 	defaultFillColor?: Uint8ClampedArray;
 	currentFillColor?: Uint8ClampedArray;
+	generationFillColor?: Uint8ClampedArray;
 }
 
 class Cell {
@@ -53,15 +56,17 @@ class Cell {
 	//canvas/animation properties
 	ctx: CanvasRenderingContext2D;
 	cellWidth: number;
-	newWallColor: Uint8ClampedArray;
+	generationWallColor: Uint8ClampedArray;
 	defaultWallColor: Uint8ClampedArray;
 	currentWallColor: Uint8ClampedArray;
 	solvedFillColor: Uint8ClampedArray;
-	solveVisitedFillColor: Uint8ClampedArray;
+	searchFillColor: Uint8ClampedArray;
 	defaultFillColor: Uint8ClampedArray;
 	currentFillColor: Uint8ClampedArray;
+	generationFillColor: Uint8ClampedArray;
 	generationIncrement: number;
 	solveIncrement: number;
+	searchIncrement: number;
 
 	//canvas location of the cell's four corners
 	TLC: number; //top left col
@@ -87,27 +92,31 @@ class Cell {
 		this.solveVisited = false;
 		this.solveParent = null;
 
-		//drawing properties
 		this.ctx = params.ctx;
 
-		//animations
-		//the more animations, the faster the generationAnimations need to end
-		this.generationIncrement = this.maze.dimensions / 10;
+		this.generationIncrement = Math.ceil(this.maze.dimensions / 10);
+		this.searchIncrement = 25;
 		this.solveIncrement = 10;
+
+		//wall colors
 		this.defaultWallColor =
 			params.defaultWallColor ?? new Uint8ClampedArray(BLACK);
-		this.newWallColor =
-			params.newWallColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
+		this.generationWallColor =
+			params.generationWallColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
 		this.currentWallColor =
 			params.currentWallColor ?? new Uint8ClampedArray(BLACK);
+
+		//fill colors
 		this.defaultFillColor =
 			params.defaultFillColor ?? new Uint8ClampedArray(WHITE);
 		this.solvedFillColor =
 			params.solvedFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
-		this.solveVisitedFillColor =
+		this.searchFillColor =
 			params.solvedFillColor ?? new Uint8ClampedArray(LIGHT_YELLOW);
 		this.currentFillColor =
 			params.currentFillColor ?? new Uint8ClampedArray(WHITE);
+		this.generationFillColor =
+			params.generationFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
 
 		this.cellWidth = Math.floor(
 			(1000 - this.maze.padding) / this.maze.array.length,
@@ -251,6 +260,8 @@ class Cell {
 	generationAnimation() {
 		//increment colors back to defaults
 		let done = true;
+
+		//wall colors
 		for (let i = 0; i < this.currentWallColor.length; i++) {
 			if (this.currentWallColor[i] !== this.defaultWallColor[i]) {
 				//prevent flickering when the "last bit" of animation is too small for the increment amount
@@ -271,6 +282,27 @@ class Cell {
 			}
 		}
 
+		//fill colors
+		for (let i = 0; i < this.currentFillColor.length; i++) {
+			if (this.currentFillColor[i] !== this.defaultFillColor[i]) {
+				done = false;
+				//prevent flickering when the "last bit" of animation is too small for the increment amount
+				if (
+					Math.abs(this.defaultFillColor[i] - this.currentFillColor[i]) <
+					this.generationIncrement
+				) {
+					this.currentFillColor[i] +=
+						this.defaultFillColor[i] > this.currentFillColor[i] ? 1 : -1;
+				} else {
+					const direction =
+						this.defaultFillColor[i] > this.currentFillColor[i]
+							? this.generationIncrement
+							: -this.generationIncrement;
+					this.currentFillColor[i] += direction;
+				}
+			}
+		}
+
 		this.drawCell();
 
 		//it's only "done" if the color matches the destination color
@@ -286,11 +318,12 @@ class Cell {
     itself back into the Animation Queue).
   */
 	addGenerationToQueue() {
-		//immediately turns the cell walls red
+		//immediately turns the cell walls new color
 		//and draws the cell
 		//then adds the animation to the queue
 		//to increment it back down to defualt color
-		this.currentWallColor = this.newWallColor;
+		this.currentWallColor = this.generationWallColor;
+		this.currentFillColor = this.generationFillColor;
 		this.drawCell();
 
 		//make sure "this" is referring to the cell when its called
@@ -299,13 +332,44 @@ class Cell {
 	}
 
 	markVisited() {
-		this.currentFillColor = this.solveVisitedFillColor;
-		this.drawCell();
+		this.addSearchAnimationToQueue();
 	}
 
-	unmarkVisited() {
-		this.currentFillColor = this.defaultFillColor;
+	searchAnimation() {
+		//increment to the solved state fill color
+		let done = true;
+		for (let i = 0; i < this.currentFillColor.length; i++) {
+			if (this.currentFillColor[i] !== this.searchFillColor[i]) {
+				done = false;
+				//prevent flickering when the "last bit" of animation is too small for the increment amount
+				if (
+					Math.abs(this.searchFillColor[i] - this.currentFillColor[i]) <
+					this.searchIncrement
+				) {
+					this.currentFillColor[i] +=
+						this.searchFillColor[i] > this.currentFillColor[i] ? 1 : -1;
+				} else {
+					const direction =
+						this.searchFillColor[i] > this.currentFillColor[i]
+							? this.searchIncrement
+							: -this.searchIncrement;
+					this.currentFillColor[i] += direction;
+				}
+			}
+		}
+
 		this.drawCell();
+
+		//it's only "done" if the color matches the destination color
+		//add back into the queue for processing again
+		if (!done) this.addSearchAnimationToQueue();
+	}
+
+	/* 
+    Adds it to the AnimationQueue for processing.
+  */
+	addSearchAnimationToQueue() {
+		this.maze.animationQueue.add(this.searchAnimation.bind(this));
 	}
 
 	/* 
@@ -428,7 +492,7 @@ export class MazeAnimation extends Animation {
 		this.generationsPerFrame = this.calculateCallsPerFrame(
 			options,
 			'generations',
-			2,
+			3,
 		);
 		this.searchesPerFrame = this.calculateCallsPerFrame(options, 'searches');
 		this.solvePathsPerFrame = this.calculateCallsPerFrame(
@@ -474,7 +538,7 @@ export class MazeAnimation extends Animation {
 		return Math.ceil(
 			Math.max(
 				options[`${perFrameProperty}PerFrame`] ??
-					Math.ceil((this.array.length ** 2 / 350) * customGain),
+					Math.ceil((this.array.length ** 2 / 1000) * customGain),
 				1,
 			),
 		);
@@ -498,56 +562,58 @@ export class MazeAnimation extends Animation {
     Uses a randomized depth-first-search to generate the maze.
   */
 	generateMaze() {
-		//if stack is empty, stop trying to generate new cells
-		if (this.generationStack.isEmpty()) {
-			this.isGenerating = false;
-			this.isSolving = true;
-			return;
-		}
-
-		//if stack is not empty, generate new cells
-		const currentCell: Cell = this.generationStack.pop();
-		const unvisitedNeighbors = currentCell.getUnvisitedNeighbbors();
-		if (unvisitedNeighbors.length > 0) {
-			this.generationStack.push(currentCell);
-			//pick a random neighbor from surrounding neighbors
-			const neighbor =
-				unvisitedNeighbors[
-					Math.floor(Math.random() * unvisitedNeighbors.length)
-				];
-			if (!neighbor) return;
-			//neighbor.direciton is the direction you have to go
-			//to get to the neighbor from the current cell
-			//that was just popped off of the generationStack
-			if (neighbor.direction === 'north') {
-				currentCell.northWall = false;
-				neighbor.cell!.southWall = false;
-			} else if (neighbor.direction === 'east') {
-				currentCell.eastWall = false;
-				neighbor.cell!.westWall = false;
-			} else if (neighbor.direction === 'south') {
-				currentCell.southWall = false;
-				neighbor.cell!.northWall = false;
-			} else if (neighbor.direction === 'west') {
-				currentCell.westWall = false;
-				neighbor.cell!.eastWall = false;
+		for (let i = 0; i < this.generationsPerFrame; i++) {
+			//if stack is empty, stop trying to generate new cells
+			if (this.generationStack.isEmpty()) {
+				this.isGenerating = false;
+				this.isSolving = true;
+				return;
 			}
 
-			neighbor.cell.generationVisited = true;
-			this.generationStack.push(neighbor.cell);
+			//if stack is not empty, generate new cells
+			const currentCell: Cell = this.generationStack.pop();
+			const unvisitedNeighbors = currentCell.getUnvisitedNeighbbors();
+			if (unvisitedNeighbors.length > 0) {
+				this.generationStack.push(currentCell);
+				//pick a random neighbor from surrounding neighbors
+				const neighbor =
+					unvisitedNeighbors[
+						Math.floor(Math.random() * unvisitedNeighbors.length)
+					];
+				if (!neighbor) return;
+				//neighbor.direciton is the direction you have to go
+				//to get to the neighbor from the current cell
+				//that was just popped off of the generationStack
+				if (neighbor.direction === 'north') {
+					currentCell.northWall = false;
+					neighbor.cell!.southWall = false;
+				} else if (neighbor.direction === 'east') {
+					currentCell.eastWall = false;
+					neighbor.cell!.westWall = false;
+				} else if (neighbor.direction === 'south') {
+					currentCell.southWall = false;
+					neighbor.cell!.northWall = false;
+				} else if (neighbor.direction === 'west') {
+					currentCell.westWall = false;
+					neighbor.cell!.eastWall = false;
+				}
 
-			/* 
-          Must draw both cells to prevent visual glitches.
-          In general, I've tried to avoid drawing every cell 
-          every frame because of the heavy load that it incurs
-          on larger mazes (and thus slower frame rates).
-        */
-			currentCell.drawCell();
-			neighbor.cell.drawCell();
+				neighbor.cell.generationVisited = true;
+				this.generationStack.push(neighbor.cell);
 
-			//begin generationAnimation process for the new cells
-			currentCell.addGenerationToQueue();
-			neighbor.cell.addGenerationToQueue();
+				/* 
+            Must draw both cells to prevent visual glitches.
+            In general, I've tried to avoid drawing every cell 
+            every frame because of the heavy load that it incurs
+            on larger mazes (and thus slower frame rates).
+          */
+				currentCell.drawCell();
+				neighbor.cell.drawCell();
+
+				//begin generationAnimation process for the new cells
+				currentCell.addGenerationToQueue();
+				neighbor.cell.addGenerationToQueue();
+			}
 		}
 	}
 
@@ -571,54 +637,59 @@ export class MazeAnimation extends Animation {
     Breadth-first search maze solve.
   */
 	solveMaze() {
-		//if solve Queue is empty, stop trying to solve
-		if (this.solveQueue.isEmpty()) {
-			this.isSolving = false;
-			return;
-		}
-
-		//else if queue is not empty, continue solving
-		const dequeuedCell: Cell = this.solveQueue.remove();
-		dequeuedCell.solveVisited = true;
-		dequeuedCell.markVisited();
-
-		if (dequeuedCell === this.endCell) {
-			this.isSolving = false;
-
-			//trace path backawards and add to array
-			const solvePath: Cell[] = [];
-			let currentCell = dequeuedCell;
-			while (currentCell.solveParent) {
-				solvePath.push(currentCell);
-				currentCell = currentCell.solveParent;
+		for (let i = 0; i < this.searchesPerFrame; i++) {
+			//if solve Queue is empty, stop trying to solve
+			if (this.solveQueue.isEmpty()) {
+				this.isSolving = false;
+				return;
 			}
 
-			//add starting cell back in
-			solvePath.push(this.startCell);
-			this.solvePath = solvePath;
-			this.isSolving = false;
-			this.isAnimatingSolve = true;
-			return;
-		}
+			//else if queue is not empty, continue solving
+			const dequeuedCell: Cell = this.solveQueue.remove();
+			dequeuedCell.solveVisited = true;
+			dequeuedCell.markVisited();
 
-		const neighbors = dequeuedCell.getTraversableNeighbors();
-		for (let neighbor of neighbors) {
-			if (neighbor && !neighbor.solveVisited) {
-				//keep track of parent cell to trace path back to start
-				neighbor.solveParent = dequeuedCell;
-				this.solveQueue.add(neighbor);
+			if (dequeuedCell === this.endCell) {
+				this.isSolving = false;
+
+				//trace path backawards and add to array
+				const solvePath: Cell[] = [];
+				let currentCell = dequeuedCell;
+				while (currentCell.solveParent) {
+					solvePath.push(currentCell);
+					currentCell = currentCell.solveParent;
+				}
+
+				//add starting cell back in
+				solvePath.push(this.startCell);
+				this.solvePath = solvePath;
+				this.isSolving = false;
+				this.isAnimatingSolve = true;
+				return;
+			}
+
+			const neighbors = dequeuedCell.getTraversableNeighbors();
+			for (let neighbor of neighbors) {
+				if (neighbor && !neighbor.solveVisited) {
+					//keep track of parent cell to trace path back to start
+					neighbor.solveParent = dequeuedCell;
+					this.solveQueue.add(neighbor);
+				}
 			}
 		}
 	}
 
 	animateSolve() {
-		if (this.solvePath.length === 0) {
-			this.isAnimatingSolve = false;
-			return;
+		for (let i = 0; i < this.solvePathsPerFrame; i++) {
+			if (this.solvePath.length === 0) {
+				this.isAnimatingSolve = false;
+				return;
+			}
+
+			const solvedCell = this.solvePath.pop();
+			solvedCell!.addSolveAnimationToQueue();
+			solvedCell!.drawCell();
 		}
-		const solvedCell = this.solvePath.pop();
-		solvedCell!.addSolveAnimationToQueue();
-		solvedCell!.drawCell();
 	}
 
 	/* 
@@ -626,30 +697,11 @@ export class MazeAnimation extends Animation {
     Recursively calls itself to generate new frames.
   */
 	animate() {
-		//generate maze--runs first
-		if (this.isGenerating) {
-			for (let i = 0; i < this.generationsPerFrame; i++) {
-				this.generateMaze();
-			}
-		}
-
-		//solve maze--runs second
-		if (this.isSolving) {
-			for (let i = 0; i < this.searchesPerFrame; i++) {
-				this.solveMaze();
-			}
-		}
-
-		//animate the solved path
-		if (this.isAnimatingSolve) {
-			for (let i = 0; i < this.solvePathsPerFrame; i++) {
-				this.animateSolve();
-			}
-		}
-
-		if (this.isComplete) {
-			return;
-		}
+		//timeline of events
+		if (this.isGenerating) this.generateMaze();
+		if (this.isSolving) this.solveMaze();
+		if (this.isAnimatingSolve) this.animateSolve();
+		if (this.isComplete) return;
 
 		//run animation queue--runs every frame
 		this.runAnimationQueue();
@@ -665,7 +717,7 @@ export class MazeAnimation extends Animation {
 */
 export function Maze() {
 	const options = {
-		dimensions: 20,
+		dimensions: 10,
 	};
 	const [canvas] = useAnimation(MazeAnimation, options);
 	return canvas;
@@ -673,7 +725,10 @@ export function Maze() {
 
 /* 
 To-dos: 
-enable solvePathsPerFrame
-Create searchAnimation
-Enable multiple searches per frame.
+Fix competing animations (search vs solved animations fighting each other)
+Stop duplicating animation increment logic
+Animate canvas reset.
+Add UI
+add DFS and Bi-directional search
+Add mouse input for path blocks
 */
