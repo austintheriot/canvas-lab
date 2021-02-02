@@ -6,7 +6,7 @@ export class Animation {
 		this.canvas = canvas;
 		this.canvas.width = 1000;
 		this.canvas.height = 1000;
-		if (!canvas.getContext('2d')) alert('2D canvas not supported!');
+		if (!canvas.getContext('2d', { alpha: false })) alert('2D canvas not supported!');
 		this.ctx = canvas.getContext('2d')!;
 	}
 }
