@@ -50,8 +50,13 @@ class Cell {
 
 	//data properties
 	generationVisited: boolean;
-	solveVisited: boolean;
+	searchVisisted: boolean;
 	solveParent: Cell | null;
+
+	//state
+	isAnimatingGeneration: boolean;
+	isAnimatingSearch: boolean;
+	isAnimatingSolve: boolean;
 
 	//canvas/animation properties
 	ctx: CanvasRenderingContext2D;
@@ -89,8 +94,13 @@ class Cell {
 		this.westWall = true;
 
 		this.generationVisited = false;
-		this.solveVisited = false;
+		this.searchVisisted = false;
 		this.solveParent = null;
+
+		//staet: prevents flickering from competing animations
+		this.isAnimatingGeneration = false;
+		this.isAnimatingSearch = false;
+		this.isAnimatingSolve = false;
 
 		this.ctx = params.ctx;
 
@@ -258,6 +268,8 @@ class Cell {
     default color. Used when a new cell is first generated.
   */
 	generationAnimation() {
+		//prevents flickering from competing animations
+		if (!this.isAnimatingGeneration) return;
 		//increment colors back to defaults
 		let done = true;
 
@@ -324,6 +336,7 @@ class Cell {
 		//to increment it back down to defualt color
 		this.currentWallColor = this.generationWallColor;
 		this.currentFillColor = this.generationFillColor;
+		this.isAnimatingGeneration = true;
 		this.drawCell();
 
 		//make sure "this" is referring to the cell when its called
@@ -336,6 +349,8 @@ class Cell {
 	}
 
 	searchAnimation() {
+		//prevents flickering from competing animations
+		if (!this.isAnimatingSearch) return;
 		//increment to the solved state fill color
 		let done = true;
 		for (let i = 0; i < this.currentFillColor.length; i++) {
@@ -369,6 +384,8 @@ class Cell {
     Adds it to the AnimationQueue for processing.
   */
 	addSearchAnimationToQueue() {
+		this.isAnimatingGeneration = false;
+		this.isAnimatingSearch = true;
 		this.maze.animationQueue.add(this.searchAnimation.bind(this));
 	}
 
@@ -378,6 +395,8 @@ class Cell {
     Used when the maze solution is finished.
   */
 	solveAnimation() {
+		//prevents flickering from competing animations
+		if (!this.isAnimatingSolve) return;
 		//increment to the solved state fill color
 		let done = true;
 		for (let i = 0; i < this.currentFillColor.length; i++) {
@@ -411,6 +430,8 @@ class Cell {
     Adds it to the AnimationQueue for processing.
   */
 	addSolveAnimationToQueue() {
+		this.isAnimatingSearch = false;
+		this.isAnimatingSolve = true;
 		this.maze.animationQueue.add(this.solveAnimation.bind(this));
 	}
 }
@@ -431,7 +452,7 @@ export class MazeAnimation extends Animation {
 	padding: number;
 	isGenerating: boolean;
 	isSolving: boolean;
-	isAnimatingSolve: boolean;
+	isAnimatingSearch: boolean;
 	isComplete: boolean;
 	generationsPerFrame: number;
 	searchesPerFrame: number;
@@ -458,7 +479,7 @@ export class MazeAnimation extends Animation {
 		//which portion of the animation is complete
 		this.isGenerating = true;
 		this.isSolving = false;
-		this.isAnimatingSolve = false;
+		this.isAnimatingSearch = false;
 		this.isComplete = false;
 
 		//make canvas background white
@@ -646,7 +667,7 @@ export class MazeAnimation extends Animation {
 
 			//else if queue is not empty, continue solving
 			const dequeuedCell: Cell = this.solveQueue.remove();
-			dequeuedCell.solveVisited = true;
+			dequeuedCell.searchVisisted = true;
 			dequeuedCell.markVisited();
 
 			if (dequeuedCell === this.endCell) {
@@ -664,13 +685,13 @@ export class MazeAnimation extends Animation {
 				solvePath.push(this.startCell);
 				this.solvePath = solvePath;
 				this.isSolving = false;
-				this.isAnimatingSolve = true;
+				this.isAnimatingSearch = true;
 				return;
 			}
 
 			const neighbors = dequeuedCell.getTraversableNeighbors();
 			for (let neighbor of neighbors) {
-				if (neighbor && !neighbor.solveVisited) {
+				if (neighbor && !neighbor.searchVisisted) {
 					//keep track of parent cell to trace path back to start
 					neighbor.solveParent = dequeuedCell;
 					this.solveQueue.add(neighbor);
@@ -682,7 +703,7 @@ export class MazeAnimation extends Animation {
 	animateSolve() {
 		for (let i = 0; i < this.solvePathsPerFrame; i++) {
 			if (this.solvePath.length === 0) {
-				this.isAnimatingSolve = false;
+				this.isAnimatingSearch = false;
 				return;
 			}
 
@@ -700,7 +721,7 @@ export class MazeAnimation extends Animation {
 		//timeline of events
 		if (this.isGenerating) this.generateMaze();
 		if (this.isSolving) this.solveMaze();
-		if (this.isAnimatingSolve) this.animateSolve();
+		if (this.isAnimatingSearch) this.animateSolve();
 		if (this.isComplete) return;
 
 		//run animation queue--runs every frame
@@ -717,7 +738,7 @@ export class MazeAnimation extends Animation {
 */
 export function Maze() {
 	const options = {
-		dimensions: 10,
+		dimensions: 20,
 	};
 	const [canvas] = useAnimation(MazeAnimation, options);
 	return canvas;
@@ -725,7 +746,6 @@ export function Maze() {
 
 /* 
 To-dos: 
-Fix competing animations (search vs solved animations fighting each other)
 Stop duplicating animation increment logic
 Animate canvas reset.
 Add UI
