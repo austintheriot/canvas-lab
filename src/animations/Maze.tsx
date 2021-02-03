@@ -262,6 +262,38 @@ class Cell {
 		this.ctx.stroke();
 	}
 
+	incrementColor({
+		currentColor,
+		destinationColor,
+		incrementAmount,
+	}: {
+		currentColor: Uint8ClampedArray;
+		destinationColor: Uint8ClampedArray;
+		incrementAmount: number;
+	}) {
+		//increment colors back to defaults
+		let done = true;
+
+		//wall colors
+		for (let i = 0; i < currentColor.length; i++) {
+			if (currentColor[i] !== destinationColor[i]) {
+				//prevent flickering when the "last bit" of animation is too small for the increment amount
+				if (Math.abs(currentColor[i] - destinationColor[i]) < incrementAmount) {
+					currentColor[i] = destinationColor[i];
+				} else {
+					done = false;
+					const direction =
+						destinationColor[i] > currentColor[i]
+							? incrementAmount
+							: -incrementAmount;
+					currentColor[i] += direction;
+				}
+			}
+		}
+
+		return done;
+	}
+
 	/* 
     Called by the AnimationQueue.
     Increments the color of the cell back in the direction of the 
@@ -270,56 +302,25 @@ class Cell {
 	generationAnimation() {
 		//prevents flickering from competing animations
 		if (!this.isAnimatingGeneration) return;
+
 		//increment colors back to defaults
-		let done = true;
+		const wallDone = this.incrementColor({
+			currentColor: this.currentWallColor,
+			destinationColor: this.defaultWallColor,
+			incrementAmount: this.generationIncrement,
+		});
 
-		//wall colors
-		for (let i = 0; i < this.currentWallColor.length; i++) {
-			if (this.currentWallColor[i] !== this.defaultWallColor[i]) {
-				//prevent flickering when the "last bit" of animation is too small for the increment amount
-				if (
-					Math.abs(this.currentWallColor[i] - this.defaultWallColor[i]) <
-					this.generationIncrement
-				) {
-					this.currentWallColor[i] +=
-						this.defaultWallColor[i] > this.currentWallColor[i] ? 1 : -1;
-				} else {
-					done = false;
-					const direction =
-						this.defaultWallColor[i] > this.currentWallColor[i]
-							? this.generationIncrement
-							: -this.generationIncrement;
-					this.currentWallColor[i] += direction;
-				}
-			}
-		}
-
-		//fill colors
-		for (let i = 0; i < this.currentFillColor.length; i++) {
-			if (this.currentFillColor[i] !== this.defaultFillColor[i]) {
-				done = false;
-				//prevent flickering when the "last bit" of animation is too small for the increment amount
-				if (
-					Math.abs(this.defaultFillColor[i] - this.currentFillColor[i]) <
-					this.generationIncrement
-				) {
-					this.currentFillColor[i] +=
-						this.defaultFillColor[i] > this.currentFillColor[i] ? 1 : -1;
-				} else {
-					const direction =
-						this.defaultFillColor[i] > this.currentFillColor[i]
-							? this.generationIncrement
-							: -this.generationIncrement;
-					this.currentFillColor[i] += direction;
-				}
-			}
-		}
+		const fillDone = this.incrementColor({
+			currentColor: this.currentFillColor,
+			destinationColor: this.defaultFillColor,
+			incrementAmount: this.generationIncrement,
+		});
 
 		this.drawCell();
 
 		//it's only "done" if the color matches the destination color
 		//add back into the queue for processing again
-		if (!done) this.addGenerationToQueue();
+		if (!wallDone || !fillDone) this.addGenerationToQueue();
 	}
 
 	/* 
@@ -351,27 +352,13 @@ class Cell {
 	searchAnimation() {
 		//prevents flickering from competing animations
 		if (!this.isAnimatingSearch) return;
+
 		//increment to the solved state fill color
-		let done = true;
-		for (let i = 0; i < this.currentFillColor.length; i++) {
-			if (this.currentFillColor[i] !== this.searchFillColor[i]) {
-				done = false;
-				//prevent flickering when the "last bit" of animation is too small for the increment amount
-				if (
-					Math.abs(this.searchFillColor[i] - this.currentFillColor[i]) <
-					this.searchIncrement
-				) {
-					this.currentFillColor[i] +=
-						this.searchFillColor[i] > this.currentFillColor[i] ? 1 : -1;
-				} else {
-					const direction =
-						this.searchFillColor[i] > this.currentFillColor[i]
-							? this.searchIncrement
-							: -this.searchIncrement;
-					this.currentFillColor[i] += direction;
-				}
-			}
-		}
+		const done = this.incrementColor({
+			currentColor: this.currentFillColor,
+			destinationColor: this.searchFillColor,
+			incrementAmount: this.searchIncrement,
+		});
 
 		this.drawCell();
 
@@ -397,27 +384,13 @@ class Cell {
 	solveAnimation() {
 		//prevents flickering from competing animations
 		if (!this.isAnimatingSolve) return;
+
 		//increment to the solved state fill color
-		let done = true;
-		for (let i = 0; i < this.currentFillColor.length; i++) {
-			if (this.currentFillColor[i] !== this.solvedFillColor[i]) {
-				done = false;
-				//prevent flickering when the "last bit" of animation is too small for the increment amount
-				if (
-					Math.abs(this.solvedFillColor[i] - this.currentFillColor[i]) <
-					this.solveIncrement
-				) {
-					this.currentFillColor[i] +=
-						this.solvedFillColor[i] > this.currentFillColor[i] ? 1 : -1;
-				} else {
-					const direction =
-						this.solvedFillColor[i] > this.currentFillColor[i]
-							? this.solveIncrement
-							: -this.solveIncrement;
-					this.currentFillColor[i] += direction;
-				}
-			}
-		}
+		const done = this.incrementColor({
+			currentColor: this.currentFillColor,
+			destinationColor: this.solvedFillColor,
+			incrementAmount: this.solveIncrement,
+		});
 
 		this.drawCell();
 
@@ -451,8 +424,8 @@ export class MazeAnimation extends Animation {
 	dimensions: number;
 	padding: number;
 	isGenerating: boolean;
+	isSearching: boolean;
 	isSolving: boolean;
-	isAnimatingSearch: boolean;
 	isComplete: boolean;
 	generationsPerFrame: number;
 	searchesPerFrame: number;
@@ -478,8 +451,8 @@ export class MazeAnimation extends Animation {
 
 		//which portion of the animation is complete
 		this.isGenerating = true;
+		this.isSearching = false;
 		this.isSolving = false;
-		this.isAnimatingSearch = false;
 		this.isComplete = false;
 
 		//make canvas background white
@@ -582,12 +555,12 @@ export class MazeAnimation extends Animation {
 	/* 
     Uses a randomized depth-first-search to generate the maze.
   */
-	generateMaze() {
+	generate() {
 		for (let i = 0; i < this.generationsPerFrame; i++) {
 			//if stack is empty, stop trying to generate new cells
 			if (this.generationStack.isEmpty()) {
 				this.isGenerating = false;
-				this.isSolving = true;
+				this.isSearching = true;
 				return;
 			}
 
@@ -655,13 +628,13 @@ export class MazeAnimation extends Animation {
 	}
 
 	/* 
-    Breadth-first search maze solve.
+    Search the maze using breadth first search.
   */
-	solveMaze() {
+	bfs() {
 		for (let i = 0; i < this.searchesPerFrame; i++) {
 			//if solve Queue is empty, stop trying to solve
 			if (this.solveQueue.isEmpty()) {
-				this.isSolving = false;
+				this.isSearching = false;
 				return;
 			}
 
@@ -671,7 +644,7 @@ export class MazeAnimation extends Animation {
 			dequeuedCell.markVisited();
 
 			if (dequeuedCell === this.endCell) {
-				this.isSolving = false;
+				this.isSearching = false;
 
 				//trace path backawards and add to array
 				const solvePath: Cell[] = [];
@@ -684,8 +657,8 @@ export class MazeAnimation extends Animation {
 				//add starting cell back in
 				solvePath.push(this.startCell);
 				this.solvePath = solvePath;
-				this.isSolving = false;
-				this.isAnimatingSearch = true;
+				this.isSearching = false;
+				this.isSolving = true;
 				return;
 			}
 
@@ -700,10 +673,10 @@ export class MazeAnimation extends Animation {
 		}
 	}
 
-	animateSolve() {
+	solve() {
 		for (let i = 0; i < this.solvePathsPerFrame; i++) {
 			if (this.solvePath.length === 0) {
-				this.isAnimatingSearch = false;
+				this.isSolving = false;
 				return;
 			}
 
@@ -719,9 +692,9 @@ export class MazeAnimation extends Animation {
   */
 	animate() {
 		//timeline of events
-		if (this.isGenerating) this.generateMaze();
-		if (this.isSolving) this.solveMaze();
-		if (this.isAnimatingSearch) this.animateSolve();
+		if (this.isGenerating) this.generate();
+		if (this.isSearching) this.bfs();
+		if (this.isSolving) this.solve();
 		if (this.isComplete) return;
 
 		//run animation queue--runs every frame
@@ -746,7 +719,6 @@ export function Maze() {
 
 /* 
 To-dos: 
-Stop duplicating animation increment logic
 Animate canvas reset.
 Add UI
 add DFS and Bi-directional search
