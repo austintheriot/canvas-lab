@@ -10,6 +10,7 @@ const LIGHT_YELLOW = [255, 251, 189];
 const DARK_BLUE = [0, 74, 105];
 const WHITE = [255, 255, 255];
 const BLACK = [0, 0, 0];
+const PEACH = [255, 197, 189];
 
 interface AnyNeighbor {
 	cell: Cell | null;
@@ -32,10 +33,11 @@ interface CellParams {
 	generationWallColor?: Uint8ClampedArray;
 	defaultWallColor?: Uint8ClampedArray;
 	currentWallColor?: Uint8ClampedArray;
-	solvedFillColor?: Uint8ClampedArray;
+	solveFillColor?: Uint8ClampedArray;
 	defaultFillColor?: Uint8ClampedArray;
 	currentFillColor?: Uint8ClampedArray;
 	generationFillColor?: Uint8ClampedArray;
+	searchFillColor?: Uint8ClampedArray;
 }
 
 class Cell {
@@ -64,7 +66,7 @@ class Cell {
 	generationWallColor: Uint8ClampedArray;
 	defaultWallColor: Uint8ClampedArray;
 	currentWallColor: Uint8ClampedArray;
-	solvedFillColor: Uint8ClampedArray;
+	solveFillColor: Uint8ClampedArray;
 	searchFillColor: Uint8ClampedArray;
 	defaultFillColor: Uint8ClampedArray;
 	currentFillColor: Uint8ClampedArray;
@@ -119,10 +121,10 @@ class Cell {
 		//fill colors
 		this.defaultFillColor =
 			params.defaultFillColor ?? new Uint8ClampedArray(WHITE);
-		this.solvedFillColor =
-			params.solvedFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
+		this.solveFillColor =
+			params.solveFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
 		this.searchFillColor =
-			params.solvedFillColor ?? new Uint8ClampedArray(LIGHT_YELLOW);
+			params.searchFillColor ?? new Uint8ClampedArray(LIGHT_YELLOW);
 		this.currentFillColor =
 			params.currentFillColor ?? new Uint8ClampedArray(WHITE);
 		this.generationFillColor =
@@ -388,7 +390,7 @@ class Cell {
 		//increment to the solved state fill color
 		const done = this.incrementColor({
 			currentColor: this.currentFillColor,
-			destinationColor: this.solvedFillColor,
+			destinationColor: this.solveFillColor,
 			incrementAmount: this.solveIncrement,
 		});
 
