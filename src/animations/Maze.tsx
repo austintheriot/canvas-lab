@@ -3,6 +3,7 @@ import { useAnimation } from '../hooks/useAnimation';
 import { Stack } from 'classes/Stack';
 import { arrayToRGB } from 'utils/arrayToRGB';
 import { Queue } from 'classes/Queue';
+import React, { useEffect, useState } from 'react';
 
 const ELETRIC_BLUE = [25, 178, 255];
 const LIGHT_BLUE = [201, 239, 255];
@@ -706,23 +707,132 @@ export class MazeAnimation extends Animation {
 		this.incrementFrameCount();
 		window.requestAnimationFrame(() => this.animate());
 	}
+
+	reset(options: MazeOptions) {
+		this.ctx.lineWidth = Math.floor(options?.lineWidth ?? 2); //width of maze walls
+		this.dimensions = Math.max(options.dimensions ?? 10, 1); //default to 10, but never less than 1
+		this.padding = Math.floor(options.padding ?? 4); // slightly offset so wall lines aren't cut off
+		this.generationStack = new Stack(); //used to generate the maze
+		this.animationQueue = new Queue(); //used for processing necessary animations
+		this.solveQueue = new Queue();
+		this.solvePath = [];
+		this.frameCount = 0;
+
+		//which portion of the animation is complete
+		this.isGenerating = true;
+		this.isSearching = false;
+		this.isSolving = false;
+		this.isComplete = false;
+
+		//make canvas background white
+		this.ctx.fillStyle = 'white';
+		this.ctx.fillRect(0, 0, 1000, 1000);
+
+		//build array of cells--fill them with info about their position in the array
+		this.array = new Array(this.dimensions).fill(null);
+		for (let col = 0; col < this.array.length; col++) {
+			this.array[col] = new Array(this.dimensions).fill(null);
+			const innerArray = this.array[col];
+			for (let row = 0; row < innerArray.length; row++) {
+				innerArray[row] = new Cell({
+					canvas: this.canvas,
+					ctx: this.ctx,
+					maze: this,
+					row,
+					col,
+				});
+			}
+		}
+
+		//make entrance the top left cell & exit the bottom right cell
+		this.array[0][0].northWall = false;
+		this.array[this.array.length - 1][this.array.length - 1].southWall = false;
+
+		/* 
+      How many function calls to do per frame.
+      By default, the larger the array, the faster it goes.
+    */
+		this.generationsPerFrame = this.calculateCallsPerFrame(
+			options,
+			'generations',
+			3,
+		);
+		this.searchesPerFrame = this.calculateCallsPerFrame(options, 'searches');
+		this.solvePathsPerFrame = this.calculateCallsPerFrame(
+			options,
+			'solvePaths',
+			0.5,
+		);
+
+		//initialize the generationStack with a random first cell
+		const randomCol = Math.floor(Math.random() * this.array.length);
+		const randomRow = Math.floor(Math.random() * this.array[0].length);
+		this.firstCell = this.array[randomCol][randomRow];
+		this.generationStack.push(this.firstCell);
+		this.firstCell.generationVisited = true;
+
+		/* 
+    Initialze solveQueue for solving later.
+    Starting cell is the top left cell.
+    Ending cell is the bottom right cell.
+    Even though the cells do not yet have their end state
+    values (walls, etc.), they are reference values, 
+    so by the time we get around to solving the maze,
+    they will be ready.
+    */
+		this.startCell = this.array[0][0];
+		this.endCell = this.array[this.array.length - 1][this.array.length - 1];
+		this.solveQueue.add(this.startCell);
+	}
 }
+
+const buttonContainerStyles = {
+	padding: '1rem',
+	display: 'flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+};
+
+const buttonStyles = {
+	padding: '0.5rem 2rem',
+	border: '1px solid black',
+	borderRadius: '3px',
+};
+
+const sliderStyles = {};
 
 /* 
   Exports the class as a React canvas component.
 */
+const options = {
+	dimensions: 20,
+};
 export function Maze() {
-	const options = {
-		dimensions: 20,
-	};
-	const [canvas] = useAnimation(MazeAnimation, options);
-	return canvas;
+	const [canvas, mazeAnimation] = useAnimation(MazeAnimation, options);
+
+	return (
+		<>
+			<div style={buttonContainerStyles}>
+				<button
+					type="button"
+					onClick={() => mazeAnimation.reset(options)}
+					style={buttonStyles}
+				>
+					Start Over
+				</button>
+				<label htmlFor="dimensions">Dimensions</label>
+				<input id="dimensions" type="range" min="1" max="100" step="1" />
+			</div>
+			{canvas}
+		</>
+	);
 }
 
 /* 
 To-dos: 
-Animate canvas reset.
 Add UI
+
 add DFS and Bi-directional search
 Add mouse input for path blocks
+Animate canvas reset.
 */
