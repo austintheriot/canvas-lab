@@ -1,1 +1,1 @@
-# JSArt 2.0
+# Canvas Lab
