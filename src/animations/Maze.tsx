@@ -787,10 +787,14 @@ export class MazeAnimation extends Animation {
 }
 
 const buttonContainerStyles = {
+	width: '90%',
+	maxWidth: 400,
+	margin: 'auto',
 	padding: '1rem',
 	display: 'flex',
 	alignItems: 'center',
 	justifyContent: 'center',
+	'flex-direction': 'column',
 };
 
 const buttonStyles = {
@@ -798,8 +802,6 @@ const buttonStyles = {
 	border: '1px solid black',
 	borderRadius: '3px',
 };
-
-const sliderStyles = {};
 
 /* 
   Exports the class as a React canvas component.
@@ -820,8 +822,8 @@ export function Maze() {
 				>
 					Start Over
 				</button>
-				<label htmlFor="dimensions">Dimensions</label>
-				<input id="dimensions" type="range" min="1" max="100" step="1" />
+				{/* <label htmlFor="dimensions">Dimensions</label>
+				<input id="dimensions" type="range" min="1" max="100" step="1" /> */}
 			</div>
 			{canvas}
 		</>
