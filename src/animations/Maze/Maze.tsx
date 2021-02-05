@@ -1,9 +1,12 @@
-import { Animation } from '../classes/Animation';
-import { useAnimation } from '../hooks/useAnimation';
+import { Animation } from '../../classes/Animation';
+import { useAnimation } from '../../hooks/useAnimation';
 import { Stack } from 'classes/Stack';
 import { arrayToRGB } from 'utils/arrayToRGB';
 import { Queue } from 'classes/Queue';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import classes from './Maze.module.scss';
+import cloneDeep, { clone } from 'lodash';
+import { Menu } from 'components/Menu/Menu';
 
 const ELETRIC_BLUE = [25, 178, 255];
 const LIGHT_BLUE = [201, 239, 255];
@@ -414,11 +417,11 @@ class Cell {
 
 interface MazeOptions {
 	[key: string]: any;
-	dimensions?: number;
-	lineWidth?: number;
-	padding?: number;
-	generationsPerFrame: number;
-	searchesPerFrame: number;
+	dimensions?: string;
+	lineWidth?: string;
+	padding?: string;
+	generationsPerFrame?: string;
+	searchesPerFrame?: string;
 }
 
 export class MazeAnimation extends Animation {
@@ -441,11 +444,11 @@ export class MazeAnimation extends Animation {
 	endCell: Cell;
 	solvePath: Cell[];
 
-	constructor(canvas: HTMLCanvasElement, options: MazeOptions) {
+	constructor(canvas: HTMLCanvasElement, options: MazeOptions = {}) {
 		super(canvas);
-		this.ctx.lineWidth = Math.floor(options?.lineWidth ?? 2); //width of maze walls
-		this.dimensions = Math.max(options.dimensions ?? 10, 1); //default to 10, but never less than 1
-		this.padding = Math.floor(options.padding ?? 4); // slightly offset so wall lines aren't cut off
+		this.ctx.lineWidth = Math.floor(Number(options?.lineWidth ?? 2)); //width of maze walls
+		this.dimensions = Math.max(Number(options.dimensions ?? 10), 1); //default to 10, but never less than 1
+		this.padding = Math.floor(Number(options.padding ?? 4)); // slightly offset so wall lines aren't cut off
 		this.generationStack = new Stack(); //used to generate the maze
 		this.animationQueue = new Queue(); //used for processing necessary animations
 		this.solveQueue = new Queue();
@@ -709,9 +712,9 @@ export class MazeAnimation extends Animation {
 	}
 
 	reset(options: MazeOptions) {
-		this.ctx.lineWidth = Math.floor(options?.lineWidth ?? 2); //width of maze walls
-		this.dimensions = Math.max(options.dimensions ?? 10, 1); //default to 10, but never less than 1
-		this.padding = Math.floor(options.padding ?? 4); // slightly offset so wall lines aren't cut off
+		this.ctx.lineWidth = Math.floor(Number(options?.lineWidth ?? 2)); //width of maze walls
+		this.dimensions = Math.max(Number(options.dimensions ?? 10), 1); //default to 10, but never less than 1
+		this.padding = Math.floor(Number(options.padding ?? 4)); // slightly offset so wall lines aren't cut off
 		this.generationStack = new Stack(); //used to generate the maze
 		this.animationQueue = new Queue(); //used for processing necessary animations
 		this.solveQueue = new Queue();
@@ -786,47 +789,55 @@ export class MazeAnimation extends Animation {
 	}
 }
 
-const buttonContainerStyles = {
-	width: '90%',
-	maxWidth: 400,
-	margin: 'auto',
-	padding: '1rem',
-	display: 'flex',
-	alignItems: 'center',
-	justifyContent: 'center',
-	'flex-direction': 'column',
-};
-
-const buttonStyles = {
-	padding: '0.5rem 2rem',
-	border: '1px solid black',
-	borderRadius: '3px',
-};
-
 /* 
   Exports the class as a React canvas component.
 */
-const options = {
-	dimensions: 20,
-};
 export function Maze() {
-	const [canvas, mazeAnimation] = useAnimation(MazeAnimation, options);
+	const [options, setOptions] = useState<MazeOptions>({
+		dimensions: '20',
+	});
+	const [canvas, animation] = useAnimation(MazeAnimation);
+
+	const updateOptions = (
+		e: React.ChangeEvent<HTMLInputElement>,
+		key: string,
+		reset = false,
+	) => {
+		const value = e.currentTarget.value;
+		setOptions((prevState) => {
+			const newState: MazeOptions = cloneDeep(prevState);
+			newState[key] = value;
+			if (reset) animation.reset(newState);
+			return newState;
+		});
+	};
 
 	return (
-		<>
-			<div style={buttonContainerStyles}>
+		<main>
+			<Menu>
 				<button
 					type="button"
-					onClick={() => mazeAnimation.reset(options)}
-					style={buttonStyles}
+					onClick={() => animation.reset(options)}
+					className={classes.Button}
 				>
 					Start Over
 				</button>
-				{/* <label htmlFor="dimensions">Dimensions</label>
-				<input id="dimensions" type="range" min="1" max="100" step="1" /> */}
-			</div>
+				<div>
+					<label htmlFor="dimensions">Dimensions</label>
+					<input
+						id="dimensions"
+						type="range"
+						min="1"
+						max="100"
+						step="1"
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+							updateOptions(e, 'dimensions', true)
+						}
+					/>
+				</div>
+			</Menu>
 			{canvas}
-		</>
+		</main>
 	);
 }
 
