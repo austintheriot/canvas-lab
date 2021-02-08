@@ -3,18 +3,18 @@ import { useAnimation } from '../../hooks/useAnimation';
 import { Stack } from 'classes/Stack';
 import { arrayToRGB } from 'utils/arrayToRGB';
 import { Queue } from 'classes/Queue';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState } from 'react';
 import classes from './Maze.module.scss';
-import cloneDeep, { clone } from 'lodash';
+import cloneDeep from 'lodash';
 import { Menu } from 'components/Menu/Menu';
 
 const ELETRIC_BLUE = [25, 178, 255];
-const LIGHT_BLUE = [201, 239, 255];
+// const LIGHT_BLUE = [201, 239, 255];
 const LIGHT_YELLOW = [255, 251, 189];
-const DARK_BLUE = [0, 74, 105];
+// const DARK_BLUE = [0, 74, 105];
 const WHITE = [255, 255, 255];
 const BLACK = [0, 0, 0];
-const PEACH = [255, 197, 189];
+// const PEACH = [255, 197, 189];
 
 interface AnyNeighbor {
 	cell: Cell | null;
@@ -134,19 +134,10 @@ class Cell {
 		this.generationFillColor =
 			params.generationFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
 
-		this.cellWidth = Math.floor(
-			(1000 - this.maze.padding) / this.maze.array.length,
-		);
-		const paddingRoundingeError =
-			1000 - this.cellWidth * this.maze.array.length;
-		this.TLC =
-			Math.floor(this.maze.padding / 2) +
-			paddingRoundingeError / 2 +
-			this.col * this.cellWidth;
-		this.TLR =
-			Math.floor(this.maze.padding / 2) +
-			paddingRoundingeError / 2 +
-			this.row * this.cellWidth;
+		this.cellWidth =
+			(this.maze.canvas.width - this.maze.padding) / this.maze.array.length;
+		this.TLC = this.maze.padding / 2 + this.col * this.cellWidth;
+		this.TLR = this.maze.padding / 2 + this.row * this.cellWidth;
 		this.TRC = this.TLC + this.cellWidth;
 		this.TRR = this.TLR;
 		this.BRC = this.TRC;
@@ -463,7 +454,7 @@ export class MazeAnimation extends Animation {
 
 		//make canvas background white
 		this.ctx.fillStyle = 'white';
-		this.ctx.fillRect(0, 0, 1000, 1000);
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
 		//build array of cells--fill them with info about their position in the array
 		this.array = new Array(this.dimensions).fill(null);
@@ -729,7 +720,7 @@ export class MazeAnimation extends Animation {
 
 		//make canvas background white
 		this.ctx.fillStyle = 'white';
-		this.ctx.fillRect(0, 0, 1000, 1000);
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
 		//build array of cells--fill them with info about their position in the array
 		this.array = new Array(this.dimensions).fill(null);
@@ -794,9 +785,9 @@ export class MazeAnimation extends Animation {
 */
 export function Maze() {
 	const [options, setOptions] = useState<MazeOptions>({
-		dimensions: '20',
+		dimensions: '100',
 	});
-	const [canvas, animation] = useAnimation(MazeAnimation);
+	const [canvas, animation] = useAnimation(MazeAnimation, options);
 
 	const updateOptions = (
 		e: React.ChangeEvent<HTMLInputElement>,
