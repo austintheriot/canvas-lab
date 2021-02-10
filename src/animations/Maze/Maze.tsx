@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import classes from './Maze.module.scss';
 import cloneDeep from 'lodash';
 import { Menu } from 'components/Menu/Menu';
+import { Range } from 'components/Range/Range';
 
 const ELETRIC_BLUE = [25, 178, 255];
 // const LIGHT_BLUE = [201, 239, 255];
@@ -413,6 +414,7 @@ interface MazeOptions {
 	padding?: string;
 	generationsPerFrame?: string;
 	searchesPerFrame?: string;
+	solvePathsPerFrame?: string;
 }
 
 export class MazeAnimation extends Animation {
@@ -783,18 +785,25 @@ export class MazeAnimation extends Animation {
 /* 
   Exports the class as a React canvas component.
 */
+const defaults: MazeOptions = {
+	dimensions: '20',
+	lineWidth: '1',
+	generationsPerFrame: '1',
+};
+
 export function Maze() {
-	const [options, setOptions] = useState<MazeOptions>({
-		dimensions: '100',
-	});
+	const [options, setOptions] = useState<MazeOptions>(defaults);
 	const [canvas, animation] = useAnimation(MazeAnimation, options);
 
 	const updateOptions = (
-		e: React.ChangeEvent<HTMLInputElement>,
+		e:
+			| React.ChangeEvent<HTMLInputElement>
+			| { currentTarget: { value: string } },
 		key: string,
 		reset = false,
 	) => {
-		const value = e.currentTarget.value;
+		const { value } = e.currentTarget;
+		console.log(value);
 		setOptions((prevState) => {
 			const newState: MazeOptions = cloneDeep(prevState);
 			newState[key] = value;
@@ -813,19 +822,36 @@ export function Maze() {
 				>
 					Start Over
 				</button>
-				<div>
-					<label htmlFor="dimensions">Dimensions</label>
-					<input
-						id="dimensions"
-						type="range"
-						min="1"
-						max="100"
-						step="1"
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-							updateOptions(e, 'dimensions', true)
-						}
-					/>
-				</div>
+				<Range
+					label="Dimensions"
+					onChange={updateOptions}
+					updateProperty="dimensions"
+					min="1"
+					max="100"
+					step="1"
+					defaultValue={defaults.dimensions}
+					reset={true}
+				/>
+				<Range
+					label="Line Width"
+					onChange={updateOptions}
+					updateProperty="lineWidth"
+					min="1"
+					max="50"
+					step="0.00011"
+					defaultValue={defaults.lineWidth}
+					reset={true}
+				/>
+				<Range
+					label="Calcs/Frame"
+					onChange={updateOptions}
+					updateProperty="generationsPerFrame"
+					min="1"
+					max="10"
+					step="1"
+					defaultValue={defaults.generationsPerFrame}
+					reset={true}
+				/>
 			</Menu>
 			{canvas}
 		</main>
@@ -834,6 +860,9 @@ export function Maze() {
 
 /* 
 To-dos: 
+
+add initial color fill (red?) to Search animation
+
 Add UI
 
 add DFS and Bi-directional search
