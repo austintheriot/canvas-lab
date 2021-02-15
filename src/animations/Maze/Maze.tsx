@@ -9,14 +9,14 @@ import cloneDeep from 'lodash';
 import { Menu } from 'components/Menu/Menu';
 import { Range } from 'components/Range/Range';
 
-const ELETRIC_BLUE = [25, 178, 255];
-// const LIGHT_BLUE = [201, 239, 255];
-const LIGHT_YELLOW = [255, 251, 189];
 // const DARK_BLUE = [0, 74, 105];
+// const LIGHT_BLUE = [201, 239, 255];
+// const RED = [255, 50, 50];
+// const PEACH = [255, 197, 189];
+const ELETRIC_BLUE = [25, 178, 255];
+const LIGHT_YELLOW = [255, 251, 189];
 const WHITE = [255, 255, 255];
 const BLACK = [0, 0, 0];
-const RED = [255, 50, 50];
-// const PEACH = [255, 197, 189];
 
 interface AnyNeighbor {
 	cell: Cell | null;
@@ -132,7 +132,7 @@ class Cell {
 		this.solveFillColor =
 			params.solveFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
 		this.initialSearchFillColor =
-			params.initialSearchFillColor ?? new Uint8ClampedArray(RED);
+			params.initialSearchFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
 		this.finalSearchFillColor =
 			params.finalSearchFillColor ?? new Uint8ClampedArray(LIGHT_YELLOW);
 		this.currentFillColor =
@@ -341,7 +341,6 @@ class Cell {
 		this.currentWallColor = this.generationWallColor;
 		this.currentFillColor = this.generationFillColor;
 		this.isAnimatingGeneration = true;
-		this.drawCell();
 
 		//make sure "this" is referring to the cell when its called
 		//and not referring to the maze
@@ -420,6 +419,7 @@ interface MazeOptions {
 	generationsPerFrame?: string;
 	searchesPerFrame?: string;
 	solvePathsPerFrame?: string;
+	waiting?: boolean;
 }
 
 export class MazeAnimation extends Animation {
@@ -427,20 +427,18 @@ export class MazeAnimation extends Animation {
 	firstCell: Cell;
 	dimensions: number;
 	padding: number;
-	isGenerating: boolean;
-	isSearching: boolean;
-	isSolving: boolean;
-	isComplete: boolean;
+	state: 'generating' | 'searching' | 'solving' | 'complete';
 	generationsPerFrame: number;
 	searchesPerFrame: number;
 	solvePathsPerFrame: number;
 	frameCount: number;
 	generationStack: Stack<Cell>;
 	animationQueue: Queue<() => void>;
-	solveQueue: Queue<Cell>;
+	searchQueue: Queue<Cell>;
 	startCell: Cell;
 	endCell: Cell;
 	solvePath: Cell[];
+	isWaitingForAnimation: boolean;
 
 	constructor(canvas: HTMLCanvasElement, options: MazeOptions = {}) {
 		super(canvas);
@@ -449,15 +447,13 @@ export class MazeAnimation extends Animation {
 		this.padding = Math.floor(Number(options.padding ?? 4)); // slightly offset so wall lines aren't cut off
 		this.generationStack = new Stack(); //used to generate the maze
 		this.animationQueue = new Queue(); //used for processing necessary animations
-		this.solveQueue = new Queue();
+		this.searchQueue = new Queue();
 		this.solvePath = [];
 		this.frameCount = 0;
 
 		//which portion of the animation is complete
-		this.isGenerating = true;
-		this.isSearching = false;
-		this.isSolving = false;
-		this.isComplete = false;
+		this.state = 'generating';
+		this.isWaitingForAnimation = false;
 
 		//make canvas background white
 		this.ctx.fillStyle = 'white';
@@ -507,7 +503,7 @@ export class MazeAnimation extends Animation {
 		this.firstCell.generationVisited = true;
 
 		/* 
-    Initialze solveQueue for solving later.
+    Initialze searchQueue for solving later.
     Starting cell is the top left cell.
     Ending cell is the bottom right cell.
     Even though the cells do not yet have their end state
@@ -516,8 +512,8 @@ export class MazeAnimation extends Animation {
     they will be ready.
     */
 		this.startCell = this.array[0][0];
+		this.searchQueue.add(this.startCell);
 		this.endCell = this.array[this.array.length - 1][this.array.length - 1];
-		this.solveQueue.add(this.startCell);
 	}
 
 	/* 
@@ -542,20 +538,6 @@ export class MazeAnimation extends Animation {
 		);
 	}
 
-	incrementFrameCount() {
-		if (this.frameCount === Number.MAX_SAFE_INTEGER - 1) {
-			this.frameCount = 0;
-		}
-		this.frameCount++;
-	}
-
-	/* 
-    Only allows a callback to called every n frames instead of every frame 
-  */
-	throttle(callback: (params?: any) => any, n: number) {
-		if (this.frameCount % n === 0) callback();
-	}
-
 	/* 
     Uses a randomized depth-first-search to generate the maze.
   */
@@ -563,8 +545,8 @@ export class MazeAnimation extends Animation {
 		for (let i = 0; i < this.generationsPerFrame; i++) {
 			//if stack is empty, stop trying to generate new cells
 			if (this.generationStack.isEmpty()) {
-				this.isGenerating = false;
-				this.isSearching = true;
+				this.state = 'searching';
+				this.isWaitingForAnimation = true;
 				return;
 			}
 
@@ -621,20 +603,23 @@ export class MazeAnimation extends Animation {
   */
 	bfs() {
 		for (let i = 0; i < this.searchesPerFrame; i++) {
-			//if solve Queue is empty, stop trying to solve
-			if (this.solveQueue.isEmpty()) {
-				this.isSearching = false;
-				return;
-			}
+			/* 
+				If the solve Queue is empty, don't try to solve.
+			  Also wait for animation to finish to prevent visual glitch
+				where the first search cell is drawn before the generation
+				aniamtion is finished.
+			*/
+			if (this.searchQueue.isEmpty() || this.isWaitingForAnimation) return;
 
 			//else if queue is not empty, continue solving
-			const dequeuedCell = this.solveQueue.remove();
+			const dequeuedCell = this.searchQueue.remove();
 			if (!dequeuedCell) return;
 			dequeuedCell.searchVisisted = true;
 			dequeuedCell.markVisited();
 
 			if (dequeuedCell === this.endCell) {
-				this.isSearching = false;
+				this.state = 'solving';
+				this.isWaitingForAnimation = true;
 
 				//trace path backawards and add to array
 				const solvePath: Cell[] = [];
@@ -646,9 +631,8 @@ export class MazeAnimation extends Animation {
 
 				//add starting cell back in
 				solvePath.push(this.startCell);
-				this.solvePath = solvePath;
-				this.isSearching = false;
-				this.isSolving = true;
+				//track backwards for cool effect
+				this.solvePath = solvePath.reverse();
 				return;
 			}
 
@@ -658,22 +642,29 @@ export class MazeAnimation extends Animation {
 					//keep track of parent cell to trace path back to start
 					neighbor.solveParent = dequeuedCell;
 					neighbor.currentFillColor = neighbor.initialSearchFillColor;
-					this.solveQueue.add(neighbor);
+					this.searchQueue.add(neighbor);
 				}
 			}
 		}
 	}
 
 	solve() {
+		if (this.isWaitingForAnimation) return;
 		for (let i = 0; i < this.solvePathsPerFrame; i++) {
 			if (this.solvePath.length === 0) {
-				this.isSolving = false;
+				this.state = 'complete';
 				return;
 			}
 
 			const solvedCell = this.solvePath.pop();
 			solvedCell!.addSolveAnimationToQueue();
 			solvedCell!.drawCell();
+
+			//must check at the end of function
+			//to prevent solve animation ending prematurely
+			if (this.solvePath.length === 0) {
+				this.isWaitingForAnimation = true;
+			}
 		}
 	}
 
@@ -691,25 +682,10 @@ export class MazeAnimation extends Animation {
 			const animation = this.animationQueue.remove();
 			if (animation) animation();
 		}
-	}
 
-	/* 
-    Top-level animation function. 
-    Recursively calls itself to generate new frames.
-  */
-	animate() {
-		//timeline of events
-		if (this.isGenerating) this.generate();
-		if (this.isSearching) this.bfs();
-		if (this.isSolving) this.solve();
-		if (this.isComplete) return;
-
-		//run animation queue--runs every frame
-		this.runAnimationQueue();
-
-		//keep running count of number of frames
-		this.incrementFrameCount();
-		window.requestAnimationFrame(() => this.animate());
+		if (this.isWaitingForAnimation && this.animationQueue.isEmpty()) {
+			this.isWaitingForAnimation = false;
+		}
 	}
 
 	reset(options: MazeOptions) {
@@ -718,16 +694,12 @@ export class MazeAnimation extends Animation {
 		this.padding = Math.floor(Number(options.padding ?? 4)); // slightly offset so wall lines aren't cut off
 		this.generationStack = new Stack(); //used to generate the maze
 		this.animationQueue = new Queue(); //used for processing necessary animations
-		this.solveQueue = new Queue();
+		this.searchQueue = new Queue();
 		this.solvePath = [];
 		this.frameCount = 0;
 
 		//which portion of the animation is complete
-		this.isGenerating = true;
-		this.isSearching = false;
-		this.isSolving = false;
-		this.isComplete = false;
-
+		this.state = 'generating';
 		//make canvas background white
 		this.ctx.fillStyle = 'white';
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -776,7 +748,7 @@ export class MazeAnimation extends Animation {
 		this.firstCell.generationVisited = true;
 
 		/* 
-    Initialze solveQueue for solving later.
+    Initialze searchQueue for solving later.
     Starting cell is the top left cell.
     Ending cell is the bottom right cell.
     Even though the cells do not yet have their end state
@@ -786,7 +758,26 @@ export class MazeAnimation extends Animation {
     */
 		this.startCell = this.array[0][0];
 		this.endCell = this.array[this.array.length - 1][this.array.length - 1];
-		this.solveQueue.add(this.startCell);
+		this.searchQueue.add(this.startCell);
+	}
+
+	/* 
+    Top-level animation function. 
+    Recursively calls itself to generate new frames.
+  */
+	animate() {
+		//timeline of events
+		if (!this.isWaitingForAnimation) {
+			if (this.state === 'generating') this.generate();
+			if (this.state === 'searching') this.bfs();
+			if (this.state === 'solving') this.solve();
+			if (this.state === 'complete') return console.log('Done!');
+		}
+
+		//run animation queue--runs every frame
+		this.runAnimationQueue();
+
+		window.requestAnimationFrame(() => this.animate());
 	}
 }
 
