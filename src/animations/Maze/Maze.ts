@@ -27,10 +27,12 @@ export class MazeAnimation extends Animation {
 	generationStack: Stack<Cell>;
 	animationQueue: Queue<() => void>;
 	searchQueue: Queue<Cell>;
+	searchStack: Stack<Cell>;
 	startCell: Cell;
 	endCell: Cell;
 	solvePath: Cell[];
 	isWaitingForAnimation: boolean;
+	searchType: 'bfs' | 'dfs';
 
 	constructor(canvas: HTMLCanvasElement, options: MazeOptions = {}) {
 		super(canvas);
@@ -40,6 +42,8 @@ export class MazeAnimation extends Animation {
 		this.generationStack = new Stack(); //used to generate the maze
 		this.animationQueue = new Queue(); //used for processing necessary animations
 		this.searchQueue = new Queue();
+		this.searchStack = new Stack();
+		this.searchType = 'dfs';
 		this.solvePath = [];
 		this.frameCount = 0;
 
@@ -95,7 +99,7 @@ export class MazeAnimation extends Animation {
 		this.firstCell.generationVisited = true;
 
 		/* 
-    Initialze searchQueue for solving later.
+    Initialze searchQueue for bfs later.
     Starting cell is the top left cell.
     Ending cell is the bottom right cell.
     Even though the cells do not yet have their end state
@@ -105,6 +109,7 @@ export class MazeAnimation extends Animation {
     */
 		this.startCell = this.array[0][0];
 		this.searchQueue.add(this.startCell);
+		this.searchStack.push(this.startCell);
 		this.endCell = this.array[this.array.length - 1][this.array.length - 1];
 	}
 
@@ -240,6 +245,56 @@ export class MazeAnimation extends Animation {
 		}
 	}
 
+	/* 
+		Search the maze using depth first search.
+	*/
+	dfs() {
+		for (let i = 0; i < this.searchesPerFrame; i++) {
+			/* 
+			If the solve Queue is empty, don't try to solve.
+			Also wait for animation to finish to prevent visual glitch
+			where the first search cell is drawn before the generation
+			aniamtion is finished.
+		*/
+			if (this.searchStack.isEmpty() || this.isWaitingForAnimation) return;
+
+			//else if queue is not empty, continue solving
+			const dequeuedCell = this.searchStack.pop();
+			if (!dequeuedCell) return;
+			dequeuedCell.searchVisisted = true;
+			dequeuedCell.markVisited();
+
+			if (dequeuedCell === this.endCell) {
+				this.state = 'solving';
+				this.isWaitingForAnimation = true;
+
+				//trace path backawards and add to array
+				const solvePath: Cell[] = [];
+				let currentCell = dequeuedCell;
+				while (currentCell.solveParent) {
+					solvePath.push(currentCell);
+					currentCell = currentCell.solveParent;
+				}
+
+				//add starting cell back in
+				solvePath.push(this.startCell);
+				//track backwards for cool effect
+				this.solvePath = solvePath.reverse();
+				return;
+			}
+
+			const neighbors = dequeuedCell.getTraversableNeighbors();
+			for (let neighbor of neighbors) {
+				if (neighbor && !neighbor.searchVisisted) {
+					//keep track of parent cell to trace path back to start
+					neighbor.solveParent = dequeuedCell;
+					neighbor.currentFillColor = neighbor.initialSearchFillColor;
+					this.searchStack.push(neighbor);
+				}
+			}
+		}
+	}
+
 	solve() {
 		if (this.isWaitingForAnimation) return;
 		for (let i = 0; i < this.solvePathsPerFrame; i++) {
@@ -359,10 +414,26 @@ export class MazeAnimation extends Animation {
     Recursively calls itself to generate new frames.
   */
 	animate() {
-		//timeline of events
+		/* 
+			After each phase of the maze generation/solve,
+			the animation queue runs until all animations
+			of that phase have been fully completed.
+		*/
 		if (!this.isWaitingForAnimation) {
+			/* 
+				Timeline of major maze events: 
+					1) Generating
+					2) Searching
+					3) Solving
+			*/
 			if (this.state === 'generating') this.generate();
-			if (this.state === 'searching') this.bfs();
+			if (this.state === 'searching') {
+				if (this.searchType === 'dfs') {
+					this.dfs();
+				} else {
+					this.bfs();
+				}
+			}
 			if (this.state === 'solving') this.solve();
 			// if (this.state === 'complete') {}
 		}
@@ -373,13 +444,3 @@ export class MazeAnimation extends Animation {
 		window.requestAnimationFrame(() => this.animate());
 	}
 }
-
-/* 
-To-dos: 
-add DFS and Bi-directional search
-Add mouse input for path blocks
-
-Add UI
-
-Animate canvas reset.
-*/
