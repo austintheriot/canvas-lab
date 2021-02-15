@@ -153,22 +153,22 @@ export class MazeAnimation extends Animation {
 					unvisitedNeighbors[
 						Math.floor(Math.random() * unvisitedNeighbors.length)
 					];
-				if (!neighbor) return;
+				if (!neighbor || !neighbor.cell) return;
 				//neighbor.direciton is the direction you have to go
 				//to get to the neighbor from the current cell
 				//that was just popped off of the generationStack
 				if (neighbor.direction === 'north') {
 					currentCell.northWall = false;
-					neighbor.cell!.southWall = false;
+					neighbor.cell.southWall = false;
 				} else if (neighbor.direction === 'east') {
 					currentCell.eastWall = false;
-					neighbor.cell!.westWall = false;
+					neighbor.cell.westWall = false;
 				} else if (neighbor.direction === 'south') {
 					currentCell.southWall = false;
-					neighbor.cell!.northWall = false;
+					neighbor.cell.northWall = false;
 				} else if (neighbor.direction === 'west') {
 					currentCell.westWall = false;
-					neighbor.cell!.eastWall = false;
+					neighbor.cell.eastWall = false;
 				}
 
 				neighbor.cell.generationVisited = true;
@@ -249,8 +249,7 @@ export class MazeAnimation extends Animation {
 			}
 
 			const solvedCell = this.solvePath.pop();
-			solvedCell!.addSolveAnimationToQueue();
-			solvedCell!.drawCell();
+			if (solvedCell) solvedCell.addSolveAnimationToQueue();
 
 			//must check at the end of function
 			//to prevent solve animation ending prematurely
@@ -281,6 +280,9 @@ export class MazeAnimation extends Animation {
 	}
 
 	reset(options: MazeOptions) {
+		this.ctx.lineWidth = Math.floor(Number(options?.lineWidth ?? 2)); //width of maze walls
+		this.dimensions = Math.max(Number(options.dimensions ?? 10), 1); //default to 10, but never less than 1
+		this.padding = Math.floor(Number(options.padding ?? 4)); // slightly offset so wall lines aren't cut off
 		this.generationStack = new Stack(); //used to generate the maze
 		this.animationQueue = new Queue(); //used for processing necessary animations
 		this.searchQueue = new Queue();
@@ -362,7 +364,7 @@ export class MazeAnimation extends Animation {
 			if (this.state === 'generating') this.generate();
 			if (this.state === 'searching') this.bfs();
 			if (this.state === 'solving') this.solve();
-			if (this.state === 'complete') return console.log('Done!');
+			// if (this.state === 'complete') {}
 		}
 
 		//run animation queue--runs every frame
