@@ -858,14 +858,10 @@ export function Maze() {
 
 /* 
 To-dos: 
-
-add initial color fill (red?) to Search animation
-add a waiting period for each animation to finish before 
-the next one starts
+add DFS and Bi-directional search
+Add mouse input for path blocks
 
 Add UI
 
-add DFS and Bi-directional search
-Add mouse input for path blocks
 Animate canvas reset.
 */
