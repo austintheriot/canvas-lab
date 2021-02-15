@@ -281,9 +281,6 @@ export class MazeAnimation extends Animation {
 	}
 
 	reset(options: MazeOptions) {
-		this.ctx.lineWidth = Math.floor(Number(options?.lineWidth ?? 2)); //width of maze walls
-		this.dimensions = Math.max(Number(options.dimensions ?? 10), 1); //default to 10, but never less than 1
-		this.padding = Math.floor(Number(options.padding ?? 4)); // slightly offset so wall lines aren't cut off
 		this.generationStack = new Stack(); //used to generate the maze
 		this.animationQueue = new Queue(); //used for processing necessary animations
 		this.searchQueue = new Queue();
@@ -292,6 +289,8 @@ export class MazeAnimation extends Animation {
 
 		//which portion of the animation is complete
 		this.state = 'generating';
+		this.isWaitingForAnimation = false;
+
 		//make canvas background white
 		this.ctx.fillStyle = 'white';
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -349,8 +348,8 @@ export class MazeAnimation extends Animation {
     they will be ready.
     */
 		this.startCell = this.array[0][0];
-		this.endCell = this.array[this.array.length - 1][this.array.length - 1];
 		this.searchQueue.add(this.startCell);
+		this.endCell = this.array[this.array.length - 1][this.array.length - 1];
 	}
 
 	/* 
