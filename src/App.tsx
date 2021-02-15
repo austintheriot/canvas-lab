@@ -1,11 +1,11 @@
 import React from 'react';
 import styles from './App.module.scss';
-import { Maze } from 'animations/Maze/Maze';
+import { RenderMaze } from 'animations/Maze/RenderMaze';
 
 export const App = () => {
 	return (
 		<div className={styles.App}>
-			<Maze />
+			<RenderMaze />
 		</div>
 	);
 };
