@@ -334,25 +334,24 @@ export class MazeAnimation extends Animation {
 		}
 	}
 
+	/* 
+		A direct copy of the class constructor function.
+	*/
 	reset(options: MazeOptions) {
-		this.ctx.lineWidth = Math.floor(Number(options?.lineWidth ?? 2)); //width of maze walls
-		this.dimensions = Math.max(Number(options.dimensions ?? 10), 1); //default to 10, but never less than 1
-		this.padding = Math.floor(Number(options.padding ?? 4)); // slightly offset so wall lines aren't cut off
-		this.generationStack = new Stack(); //used to generate the maze
-		this.animationQueue = new Queue(); //used for processing necessary animations
+		this.ctx.lineWidth = Math.floor(Number(options?.lineWidth ?? 2));
+		this.dimensions = Math.max(Number(options.dimensions ?? 10), 1);
+		this.padding = Math.floor(Number(options.padding ?? 4));
+		this.generationStack = new Stack();
+		this.animationQueue = new Queue();
 		this.searchQueue = new Queue();
+		this.searchStack = new Stack();
+		this.searchType = 'dfs';
 		this.solvePath = [];
 		this.frameCount = 0;
-
-		//which portion of the animation is complete
 		this.state = 'generating';
 		this.isWaitingForAnimation = false;
-
-		//make canvas background white
 		this.ctx.fillStyle = 'white';
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-		//build array of cells--fill them with info about their position in the array
 		this.array = new Array(this.dimensions).fill(null);
 		for (let col = 0; col < this.array.length; col++) {
 			this.array[col] = new Array(this.dimensions).fill(null);
@@ -367,15 +366,8 @@ export class MazeAnimation extends Animation {
 				});
 			}
 		}
-
-		//make entrance the top left cell & exit the bottom right cell
 		this.array[0][0].northWall = false;
 		this.array[this.array.length - 1][this.array.length - 1].southWall = false;
-
-		/* 
-      How many function calls to do per frame.
-      By default, the larger the array, the faster it goes.
-    */
 		this.generationsPerFrame = this.calculateCallsPerFrame(
 			options,
 			'generations',
@@ -387,25 +379,14 @@ export class MazeAnimation extends Animation {
 			'solvePaths',
 			0.5,
 		);
-
-		//initialize the generationStack with a random first cell
 		const randomCol = Math.floor(Math.random() * this.array.length);
 		const randomRow = Math.floor(Math.random() * this.array[0].length);
 		this.firstCell = this.array[randomCol][randomRow];
 		this.generationStack.push(this.firstCell);
 		this.firstCell.generationVisited = true;
-
-		/* 
-    Initialze searchQueue for solving later.
-    Starting cell is the top left cell.
-    Ending cell is the bottom right cell.
-    Even though the cells do not yet have their end state
-    values (walls, etc.), they are reference values, 
-    so by the time we get around to solving the maze,
-    they will be ready.
-    */
 		this.startCell = this.array[0][0];
 		this.searchQueue.add(this.startCell);
+		this.searchStack.push(this.startCell);
 		this.endCell = this.array[this.array.length - 1][this.array.length - 1];
 	}
 
