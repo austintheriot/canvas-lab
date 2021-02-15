@@ -15,6 +15,7 @@ const LIGHT_YELLOW = [255, 251, 189];
 // const DARK_BLUE = [0, 74, 105];
 const WHITE = [255, 255, 255];
 const BLACK = [0, 0, 0];
+const RED = [255, 50, 50];
 // const PEACH = [255, 197, 189];
 
 interface AnyNeighbor {
@@ -42,7 +43,8 @@ interface CellParams {
 	defaultFillColor?: Uint8ClampedArray;
 	currentFillColor?: Uint8ClampedArray;
 	generationFillColor?: Uint8ClampedArray;
-	searchFillColor?: Uint8ClampedArray;
+	finalSearchFillColor?: Uint8ClampedArray;
+	initialSearchFillColor?: Uint8ClampedArray;
 }
 
 class Cell {
@@ -72,7 +74,8 @@ class Cell {
 	defaultWallColor: Uint8ClampedArray;
 	currentWallColor: Uint8ClampedArray;
 	solveFillColor: Uint8ClampedArray;
-	searchFillColor: Uint8ClampedArray;
+	finalSearchFillColor: Uint8ClampedArray;
+	initialSearchFillColor: Uint8ClampedArray;
 	defaultFillColor: Uint8ClampedArray;
 	currentFillColor: Uint8ClampedArray;
 	generationFillColor: Uint8ClampedArray;
@@ -112,7 +115,7 @@ class Cell {
 		this.ctx = params.ctx;
 
 		this.generationIncrement = Math.ceil(this.maze.dimensions / 10);
-		this.searchIncrement = 25;
+		this.searchIncrement = 10;
 		this.solveIncrement = 10;
 
 		//wall colors
@@ -128,8 +131,10 @@ class Cell {
 			params.defaultFillColor ?? new Uint8ClampedArray(WHITE);
 		this.solveFillColor =
 			params.solveFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
-		this.searchFillColor =
-			params.searchFillColor ?? new Uint8ClampedArray(LIGHT_YELLOW);
+		this.initialSearchFillColor =
+			params.initialSearchFillColor ?? new Uint8ClampedArray(RED);
+		this.finalSearchFillColor =
+			params.finalSearchFillColor ?? new Uint8ClampedArray(LIGHT_YELLOW);
 		this.currentFillColor =
 			params.currentFillColor ?? new Uint8ClampedArray(WHITE);
 		this.generationFillColor =
@@ -354,7 +359,7 @@ class Cell {
 		//increment to the solved state fill color
 		const done = this.incrementColor({
 			currentColor: this.currentFillColor,
-			destinationColor: this.searchFillColor,
+			destinationColor: this.finalSearchFillColor,
 			incrementAmount: this.searchIncrement,
 		});
 
@@ -612,22 +617,6 @@ export class MazeAnimation extends Animation {
 	}
 
 	/* 
-    This runs once on every frame. 
-    Every animation currently in the queue is run. 
-    Most of the animations will add themselves back 
-    into the queue to be re-run, but the animations 
-    that are added back in are not run until the 
-    next frame.
-  */
-	runAnimationQueue() {
-		const queueLength = this.animationQueue.size();
-		for (let i = 0; i < queueLength; i++) {
-			const animation = this.animationQueue.remove();
-			if (animation) animation();
-		}
-	}
-
-	/* 
     Search the maze using breadth first search.
   */
 	bfs() {
@@ -668,6 +657,7 @@ export class MazeAnimation extends Animation {
 				if (neighbor && !neighbor.searchVisisted) {
 					//keep track of parent cell to trace path back to start
 					neighbor.solveParent = dequeuedCell;
+					neighbor.currentFillColor = neighbor.initialSearchFillColor;
 					this.solveQueue.add(neighbor);
 				}
 			}
@@ -684,6 +674,22 @@ export class MazeAnimation extends Animation {
 			const solvedCell = this.solvePath.pop();
 			solvedCell!.addSolveAnimationToQueue();
 			solvedCell!.drawCell();
+		}
+	}
+
+	/* 
+    This runs once on every frame. 
+    Every animation currently in the queue is run. 
+    Most of the animations will add themselves back 
+    into the queue to be re-run, but the animations 
+    that are added back in are not run until the 
+    next frame.
+  */
+	runAnimationQueue() {
+		const queueLength = this.animationQueue.size();
+		for (let i = 0; i < queueLength; i++) {
+			const animation = this.animationQueue.remove();
+			if (animation) animation();
 		}
 	}
 
@@ -788,9 +794,8 @@ export class MazeAnimation extends Animation {
   Exports the class as a React canvas component.
 */
 const defaults: MazeOptions = {
-	dimensions: '20',
+	dimensions: '25',
 	lineWidth: '1',
-	generationsPerFrame: '10',
 };
 
 export function Maze() {
