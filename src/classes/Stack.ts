@@ -1,6 +1,6 @@
-class LinkedListNode<T>{
-  data: T;
-  next: LinkedListNode<T> | null;
+class LinkedListNode<T> {
+	data: T;
+	next: LinkedListNode<T> | null;
 
 	constructor(data: T, next: LinkedListNode<T> | null) {
 		this.data = data;
@@ -8,16 +8,16 @@ class LinkedListNode<T>{
 	}
 }
 
-class LinkedList {
-  head: LinkedListNode<any> | null;
-  length: number; 
+class LinkedList<T> {
+	head: LinkedListNode<T> | null;
+	length: number;
 
 	constructor() {
 		this.head = null;
 		this.length = 0;
 	}
 
-	prepend<T>(data: T) {
+	prepend(data: T) {
 		const newNode = new LinkedListNode(data, this.head);
 		this.head = newNode;
 		this.length++;
@@ -32,14 +32,14 @@ class LinkedList {
 	}
 }
 
-export class Stack {
-  linkedList: LinkedList;
+export class Stack<T> {
+	linkedList: LinkedList<T>;
 
 	constructor() {
 		this.linkedList = new LinkedList();
 	}
 
-	push<T>(data: T) {
+	push(data: T) {
 		this.linkedList.prepend(data);
 		return this;
 	}
@@ -57,4 +57,4 @@ export class Stack {
 	isEmpty() {
 		return !this.linkedList.head;
 	}
-};
+}

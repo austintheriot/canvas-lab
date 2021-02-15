@@ -430,9 +430,9 @@ export class MazeAnimation extends Animation {
 	searchesPerFrame: number;
 	solvePathsPerFrame: number;
 	frameCount: number;
-	generationStack: Stack;
-	animationQueue: Queue;
-	solveQueue: Queue;
+	generationStack: Stack<Cell>;
+	animationQueue: Queue<() => void>;
+	solveQueue: Queue<Cell>;
 	startCell: Cell;
 	endCell: Cell;
 	solvePath: Cell[];
@@ -564,7 +564,8 @@ export class MazeAnimation extends Animation {
 			}
 
 			//if stack is not empty, generate new cells
-			const currentCell: Cell = this.generationStack.pop();
+			const currentCell = this.generationStack.pop();
+			if (!currentCell) return;
 			const unvisitedNeighbors = currentCell.getUnvisitedNeighbbors();
 			if (unvisitedNeighbors.length > 0) {
 				this.generationStack.push(currentCell);
@@ -621,8 +622,8 @@ export class MazeAnimation extends Animation {
 	runAnimationQueue() {
 		const queueLength = this.animationQueue.size();
 		for (let i = 0; i < queueLength; i++) {
-			const animation: () => void = this.animationQueue.remove();
-			animation();
+			const animation = this.animationQueue.remove();
+			if (animation) animation();
 		}
 	}
 
@@ -638,7 +639,8 @@ export class MazeAnimation extends Animation {
 			}
 
 			//else if queue is not empty, continue solving
-			const dequeuedCell: Cell = this.solveQueue.remove();
+			const dequeuedCell = this.solveQueue.remove();
+			if (!dequeuedCell) return;
 			dequeuedCell.searchVisisted = true;
 			dequeuedCell.markVisited();
 
@@ -788,7 +790,7 @@ export class MazeAnimation extends Animation {
 const defaults: MazeOptions = {
 	dimensions: '20',
 	lineWidth: '1',
-	generationsPerFrame: '1',
+	generationsPerFrame: '10',
 };
 
 export function Maze() {
@@ -862,6 +864,8 @@ export function Maze() {
 To-dos: 
 
 add initial color fill (red?) to Search animation
+add a waiting period for each animation to finish before 
+the next one starts
 
 Add UI
 

@@ -5,8 +5,8 @@
 //isEmpty()
 
 class LinkedListNode<T> {
-  data: T;
-  next: LinkedListNode<any> | null;
+	data: T;
+	next: LinkedListNode<any> | null;
 
 	constructor(data: T, next: LinkedListNode<any> | null) {
 		this.data = data;
@@ -14,9 +14,9 @@ class LinkedListNode<T> {
 	}
 }
 
-class LinkedList {
-  head: LinkedListNode<any> | null;
-	tail: LinkedListNode<any> | null;
+class LinkedList<T> {
+	head: LinkedListNode<T> | null;
+	tail: LinkedListNode<T> | null;
 	length: number;
 
 	constructor() {
@@ -25,7 +25,7 @@ class LinkedList {
 		this.length = 0;
 	}
 
-	append<T>(data: T) {
+	append(data: T) {
 		const newNode = new LinkedListNode<T>(data, null);
 		if (this.tail) this.tail.next = newNode;
 		this.tail = newNode;
@@ -55,14 +55,14 @@ class LinkedList {
 	}
 }
 
-export class Queue {
-  linkedList: LinkedList;
+export class Queue<T> {
+	linkedList: LinkedList<T>;
 
 	constructor() {
 		this.linkedList = new LinkedList();
 	}
 
-	add<T>(data: T) {
+	add(data: T) {
 		this.linkedList.append(data);
 		return this;
 	}
@@ -94,4 +94,4 @@ export class Queue {
 		}
 		return array;
 	}
-};
+}
