@@ -7,9 +7,6 @@ import classes from './RenderMaze.module.scss';
 import { Range } from 'components/Range/Range';
 import { Menu } from 'components/Menu/Menu';
 
-/*
-  Exports the class as a React canvas component.
-*/
 const defaults: MazeOptions = {
 	dimensions: '25',
 	lineWidth: '1',

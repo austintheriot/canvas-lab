@@ -1,6 +1,6 @@
-import { Animation } from '../../classes/Animation';
-import { Stack } from 'classes/Stack';
-import { Queue } from 'classes/Queue';
+import { Animation } from '../Animation';
+import { Stack } from 'data structures/Stack';
+import { Queue } from 'data structures/Queue';
 import { Cell } from './Cell';
 
 export interface MazeOptions {
