@@ -210,7 +210,7 @@ export class MazeAnimation extends Animation {
 
 			//else if queue is not empty, continue solving
 			const dequeuedCell = this.searchQueue.remove();
-			if (!dequeuedCell) return;
+			if (!dequeuedCell || dequeuedCell.searchVisisted) return;
 			dequeuedCell.searchVisisted = true;
 			dequeuedCell.markVisited();
 
@@ -259,18 +259,18 @@ export class MazeAnimation extends Animation {
 			if (this.searchStack.isEmpty() || this.isWaitingForAnimation) return;
 
 			//else if queue is not empty, continue solving
-			const dequeuedCell = this.searchStack.pop();
-			if (!dequeuedCell) return;
-			dequeuedCell.searchVisisted = true;
-			dequeuedCell.markVisited();
+			const poppedCell = this.searchStack.pop();
+			if (!poppedCell || poppedCell.searchVisisted) return;
+			poppedCell.searchVisisted = true;
+			poppedCell.markVisited();
 
-			if (dequeuedCell === this.endCell) {
+			if (poppedCell === this.endCell) {
 				this.state = 'solving';
 				this.isWaitingForAnimation = true;
 
 				//trace path backawards and add to array
 				const solvePath: Cell[] = [];
-				let currentCell = dequeuedCell;
+				let currentCell = poppedCell;
 				while (currentCell.solveParent) {
 					solvePath.push(currentCell);
 					currentCell = currentCell.solveParent;
@@ -283,11 +283,11 @@ export class MazeAnimation extends Animation {
 				return;
 			}
 
-			const neighbors = dequeuedCell.getTraversableNeighbors();
+			const neighbors = poppedCell.getTraversableNeighbors();
 			for (let neighbor of neighbors) {
 				if (neighbor && !neighbor.searchVisisted) {
 					//keep track of parent cell to trace path back to start
-					neighbor.solveParent = dequeuedCell;
+					neighbor.solveParent = poppedCell;
 					neighbor.currentFillColor = neighbor.initialSearchFillColor;
 					this.searchStack.push(neighbor);
 				}
