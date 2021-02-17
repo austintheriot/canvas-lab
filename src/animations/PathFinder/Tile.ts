@@ -6,12 +6,12 @@ import { arrayToRGB } from 'utils/arrayToRGB';
 // const RED = [255, 50, 50];
 // const PEACH = [255, 197, 189];
 // const DARK_GRAY = [64, 64, 64];
-// const LIGHT_GRAY = [192, 192, 192];
+// const GRAY = [128, 128, 128];
+const LIGHT_GRAY = [220, 220, 220];
 const ELETRIC_BLUE = [25, 178, 255];
 const LIGHT_YELLOW = [255, 251, 189];
 const WHITE = [255, 255, 255];
 const BLACK = [0, 0, 0];
-const GRAY = [128, 128, 128];
 
 interface AnyNeighbor {
 	tile: Tile | null;
@@ -35,7 +35,8 @@ interface TileParams {
 	defaultWallColor?: Uint8ClampedArray;
 	currentWallColor?: Uint8ClampedArray;
 	solveFillColor?: Uint8ClampedArray;
-	defaultFillColor?: Uint8ClampedArray;
+	defaultOpenFillColor?: Uint8ClampedArray;
+	defaultWallFillColor?: Uint8ClampedArray;
 	currentFillColor?: Uint8ClampedArray;
 	generationFillColor?: Uint8ClampedArray;
 	finalSearchFillColor?: Uint8ClampedArray;
@@ -47,10 +48,6 @@ export class Tile {
 	grid: GridAnimation;
 	col: number;
 	row: number;
-	northWall: boolean;
-	eastWall: boolean;
-	southWall: boolean;
-	westWall: boolean;
 
 	//data properties
 	generationVisited: boolean;
@@ -65,18 +62,21 @@ export class Tile {
 	//canvas/animation properties
 	ctx: CanvasRenderingContext2D;
 	tileWidth: number;
-	generationWallColor: Uint8ClampedArray;
 	defaultWallColor: Uint8ClampedArray;
 	currentWallColor: Uint8ClampedArray;
 	solveFillColor: Uint8ClampedArray;
 	finalSearchFillColor: Uint8ClampedArray;
 	initialSearchFillColor: Uint8ClampedArray;
-	defaultFillColor: Uint8ClampedArray;
+	defaultOpenFillColor: Uint8ClampedArray;
+	defaultWallFillColor: Uint8ClampedArray;
 	currentFillColor: Uint8ClampedArray;
 	generationFillColor: Uint8ClampedArray;
 	generationIncrement: number;
 	solveIncrement: number;
 	searchIncrement: number;
+
+	type: 'open' | 'wall';
+	isNewlyPlaced: boolean;
 
 	//canvas location of the tile's four corners
 	TLC: number; //top left col
@@ -93,10 +93,12 @@ export class Tile {
 		this.grid = params.grid;
 		this.col = params.col;
 		this.row = params.row;
-		this.northWall = false;
-		this.eastWall = false;
-		this.southWall = false;
-		this.westWall = false;
+
+		this.type = 'open';
+		//counts as newly placed while mouse is down
+		//all tiles are marked not new as soon as mouse is moved up
+		//only old tiles are toggled on mousedown
+		this.isNewlyPlaced = false;
 
 		this.generationVisited = false;
 		this.searchVisited = false;
@@ -115,15 +117,15 @@ export class Tile {
 
 		//wall colors
 		this.defaultWallColor =
-			params.defaultWallColor ?? new Uint8ClampedArray(GRAY);
-		this.generationWallColor =
-			params.generationWallColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
+			params.defaultWallColor ?? new Uint8ClampedArray(LIGHT_GRAY);
 		this.currentWallColor =
-			params.currentWallColor ?? new Uint8ClampedArray(GRAY);
+			params.currentWallColor ?? new Uint8ClampedArray(LIGHT_GRAY);
 
 		//fill colors
-		this.defaultFillColor =
-			params.defaultFillColor ?? new Uint8ClampedArray(WHITE);
+		this.defaultOpenFillColor =
+			params.defaultOpenFillColor ?? new Uint8ClampedArray(WHITE);
+		this.defaultWallFillColor =
+			params.defaultWallFillColor ?? new Uint8ClampedArray(BLACK);
 		this.solveFillColor =
 			params.solveFillColor ?? new Uint8ClampedArray(ELETRIC_BLUE);
 		this.initialSearchFillColor =
@@ -220,13 +222,17 @@ export class Tile {
 	getTraversableNeighbors(): Tile[] {
 		const traversableNeighbors = [];
 		const northTile = this.getNorthTile();
-		if (northTile && !this.northWall) traversableNeighbors.push(northTile);
+		if (northTile && northTile.type !== 'wall')
+			traversableNeighbors.push(northTile);
 		const eastTile = this.getEastTile();
-		if (eastTile && !this.eastWall) traversableNeighbors.push(eastTile);
+		if (eastTile && eastTile.type !== 'wall')
+			traversableNeighbors.push(eastTile);
 		const southTile = this.getSouthTile();
-		if (southTile && !this.southWall) traversableNeighbors.push(southTile);
+		if (southTile && southTile.type !== 'wall')
+			traversableNeighbors.push(southTile);
 		const westTile = this.getWestTile();
-		if (westTile && !this.westWall) traversableNeighbors.push(westTile);
+		if (westTile && westTile.type !== 'wall')
+			traversableNeighbors.push(westTile);
 		return traversableNeighbors;
 	}
 
@@ -239,22 +245,11 @@ export class Tile {
 		this.ctx.fillStyle = arrayToRGB(this.currentFillColor);
 		this.ctx.fillRect(this.TLC, this.TLR, this.tileWidth, this.tileWidth);
 		this.ctx.beginPath();
-		if (this.northWall) {
-			this.ctx.moveTo(this.TLC, this.TLR);
-			this.ctx.lineTo(this.TRC, this.TRR);
-		}
-		if (this.eastWall) {
-			this.ctx.moveTo(this.TRC, this.TRR);
-			this.ctx.lineTo(this.BRC, this.BRR);
-		}
-		if (this.southWall) {
-			this.ctx.moveTo(this.BRC, this.BRR);
-			this.ctx.lineTo(this.BLC, this.BLR);
-		}
-		if (this.westWall) {
-			this.ctx.moveTo(this.BLC, this.BLR);
-			this.ctx.lineTo(this.TLC, this.TLR);
-		}
+		this.ctx.moveTo(this.TLC, this.TLR);
+		this.ctx.lineTo(this.TRC, this.TRR);
+		this.ctx.lineTo(this.BRC, this.BRR);
+		this.ctx.lineTo(this.BLC, this.BLR);
+		this.ctx.lineTo(this.TLC, this.TLR);
 		this.ctx.closePath();
 		this.ctx.strokeStyle = arrayToRGB(this.currentWallColor);
 		this.ctx.stroke();
@@ -290,56 +285,6 @@ export class Tile {
 		}
 
 		return done;
-	}
-
-	/* 
-    Called by the AnimationQueue.
-    Increments the color of the tile back in the direction of the 
-    default color. Used when a new tile is first generated.
-  */
-	generationAnimation() {
-		//prevents flickering from competing animations
-		if (!this.isAnimatingGeneration) return;
-
-		//increment colors back to defaults
-		const wallDone = this.incrementColor({
-			currentColor: this.currentWallColor,
-			destinationColor: this.defaultWallColor,
-			incrementAmount: this.generationIncrement,
-		});
-
-		const fillDone = this.incrementColor({
-			currentColor: this.currentFillColor,
-			destinationColor: this.defaultFillColor,
-			incrementAmount: this.generationIncrement,
-		});
-
-		this.drawTile();
-
-		//it's only "done" if the color matches the destination color
-		//add back into the queue for processing again
-		if (!wallDone || !fillDone) this.addGenerationToQueue();
-	}
-
-	/* 
-    The animation queue (called by the Maze) runs once per frame.
-    The grid only animates the animations given to it.
-    Each tile keeps track of its own animation 
-    (When the animation is done, it stops adding
-    itself back into the Animation Queue).
-  */
-	addGenerationToQueue() {
-		//immediately turns the tile walls new color
-		//and draws the tile
-		//then adds the animation to the queue
-		//to increment it back down to defualt color
-		this.currentWallColor = this.generationWallColor;
-		this.currentFillColor = this.generationFillColor;
-		this.isAnimatingGeneration = true;
-
-		//make sure "this" is referring to the tile when its called
-		//and not referring to the grid
-		this.grid.animationQueue.add(this.generationAnimation.bind(this));
 	}
 
 	searchAnimation() {

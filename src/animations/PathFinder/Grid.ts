@@ -2,6 +2,7 @@ import { Animation } from '../Animation';
 import { Stack } from 'data structures/Stack';
 import { Queue } from 'data structures/Queue';
 import { Tile } from './Tile';
+import { bfs, dfs } from './solves';
 
 export interface GridOptions {
 	[key: string]: any;
@@ -12,32 +13,41 @@ export interface GridOptions {
 	searchesPerFrame?: string;
 	solvePathsPerFrame?: string;
 	waiting?: boolean;
+	searchType?: 'bfs' | 'dfs';
 }
 
 export class GridAnimation extends Animation {
-	array: Tile[][];
-	firstTile: Tile;
-	dimensions: number;
-	padding: number;
-	state: 'waiting' | 'searching' | 'solving' | 'complete';
-	generationsPerFrame: number;
-	searchesPerFrame: number;
-	solvePathsPerFrame: number;
-	frameCount: number;
-	generationStack: Stack<Tile>;
-	animationQueue: Queue<() => void>;
-	searchQueue: Queue<Tile>;
-	searchStack: Stack<Tile>;
-	startTile: Tile;
-	endTile: Tile;
-	solvePath: Tile[];
-	isWaitingForAnimation: boolean;
-	mouse: Uint8Array;
-	isMouseDown: boolean;
-	solved: boolean;
+	array!: Tile[][];
+	firstTile!: Tile;
+	dimensions!: number;
+	padding!: number;
+	state!: 'waiting' | 'searching' | 'solving' | 'complete';
+	generationsPerFrame!: number;
+	searchesPerFrame!: number;
+	solvePathsPerFrame!: number;
+	frameCount!: number;
+	generationStack!: Stack<Tile>;
+	animationQueue!: Queue<() => void>;
+	searchQueue!: Queue<Tile>;
+	searchStack!: Stack<Tile>;
+	startTile!: Tile;
+	endTile!: Tile;
+	solvePath!: Tile[];
+	isWaitingForAnimation!: boolean;
+	mouse!: Uint8Array;
+	isMouseDown!: boolean;
+	solved!: boolean;
+	searchType!: 'bfs' | 'dfs';
 
 	constructor(canvas: HTMLCanvasElement, options: GridOptions = {}) {
 		super(canvas);
+		this.init(options);
+	}
+
+	/* 
+		In a separate function to facilitate resetting the Grid's state.
+	*/
+	init(options: GridOptions) {
 		this.mouse = new Uint8Array([0, 0]);
 		this.isMouseDown = false;
 		this.ctx.lineWidth = Math.floor(Number(options?.lineWidth ?? 2)); //width of grid walls
@@ -46,6 +56,7 @@ export class GridAnimation extends Animation {
 		this.generationStack = new Stack(); //used to generate the grid
 		this.animationQueue = new Queue(); //used for processing necessary animations
 		this.searchQueue = new Queue();
+		this.searchType = options?.searchType ?? 'bfs';
 		this.searchStack = new Stack();
 		this.solvePath = [];
 		this.solved = false;
@@ -76,10 +87,6 @@ export class GridAnimation extends Animation {
 				innerArray[row].drawTile();
 			}
 		}
-
-		//make entrance the top left tile & exit the bottom right tile
-		this.array[0][0].northWall = false;
-		this.array[this.array.length - 1][this.array.length - 1].southWall = false;
 
 		/* 
       How many function calls to do per frame.
@@ -126,25 +133,62 @@ export class GridAnimation extends Animation {
 			Math.floor((y / this.canvas.offsetHeight) * this.dimensions),
 		]);
 
-		if (this.isMouseDown) this.makeWall(this.mouse);
+		if (this.isMouseDown) this.toggleWall(this.mouse);
 	}
 
 	onMouseDown(boolean: boolean) {
 		this.isMouseDown = boolean;
-		if (this.isMouseDown) this.makeWall(this.mouse);
+		//on mouse down
+		if (this.isMouseDown) {
+			this.toggleWall(this.mouse);
+		}
+		// on mouse up
+		else {
+			this.array.forEach((outter) => {
+				outter.forEach((tile) => {
+					tile.isNewlyPlaced = false;
+				});
+			});
+		}
 	}
 
 	onSolve() {
 		this.state = 'searching';
 	}
 
-	makeWall(coords: Uint8Array) {
+	toggleWall(coords: Uint8Array) {
+		// do not allow entrance and exit to be blocked
+		if (
+			(coords[0] === 0 && coords[1] === 0) ||
+			(coords[0] === this.array.length - 1 &&
+				coords[1] === this.array.length - 1)
+		) {
+			return;
+		}
+
 		const tile: Tile | undefined =
 			this.array[coords[0]] && this.array[coords[0]][coords[1]];
-		if (tile) {
-			tile.currentFillColor = new Uint8ClampedArray([0, 0, 0]);
+
+		//only toggle if the tile has not just been placed
+		if (!tile || tile?.isNewlyPlaced) return;
+
+		//toggle tile type
+		if (tile.type === 'wall') {
+			tile.type = 'open';
+			tile.currentFillColor = tile.defaultOpenFillColor;
+			tile.isNewlyPlaced = true;
+			tile.drawTile();
+		} else if (tile.type === 'open') {
+			tile.type = 'wall';
+			tile.currentFillColor = tile.defaultWallFillColor;
+			tile.isNewlyPlaced = true;
 			tile.drawTile();
 		}
+	}
+
+	onSearchSelection(searchType: 'dfs' | 'bfs') {
+		console.log('searchType: ', searchType);
+		this.searchType = searchType;
 	}
 
 	/* 
@@ -167,123 +211,6 @@ export class GridAnimation extends Animation {
 				1,
 			),
 		);
-	}
-
-	/* 
-    Uses a randomized depth-first-search to generate the grid.
-  */
-	generate() {
-		for (let i = 0; i < this.generationsPerFrame; i++) {
-			//if stack is empty, stop trying to generate new tiles
-			if (this.generationStack.isEmpty()) {
-				this.state = 'searching';
-				this.isWaitingForAnimation = true;
-				return;
-			}
-
-			//if stack is not empty, generate new tiles
-			const currentTile = this.generationStack.pop();
-			if (!currentTile) return;
-			const unvisitedNeighbors = currentTile.getUnvisitedNeighbbors();
-			if (unvisitedNeighbors.length > 0) {
-				this.generationStack.push(currentTile);
-				//pick a random neighbor from surrounding neighbors
-				const neighbor =
-					unvisitedNeighbors[
-						Math.floor(Math.random() * unvisitedNeighbors.length)
-					];
-				if (!neighbor || !neighbor.tile) return;
-				//neighbor.direciton is the direction you have to go
-				//to get to the neighbor from the current tile
-				//that was just popped off of the generationStack
-				if (neighbor.direction === 'north') {
-					currentTile.northWall = false;
-					neighbor.tile.southWall = false;
-				} else if (neighbor.direction === 'east') {
-					currentTile.eastWall = false;
-					neighbor.tile.westWall = false;
-				} else if (neighbor.direction === 'south') {
-					currentTile.southWall = false;
-					neighbor.tile.northWall = false;
-				} else if (neighbor.direction === 'west') {
-					currentTile.westWall = false;
-					neighbor.tile.eastWall = false;
-				}
-
-				neighbor.tile.generationVisited = true;
-				this.generationStack.push(neighbor.tile);
-
-				/* 
-            Must draw both tiles to prevent visual glitches.
-            In general, I've tried to avoid drawing every tile 
-            every frame because of the heavy load that it incurs
-            on larger grids (and thus slower frame rates).
-          */
-				currentTile.drawTile();
-				neighbor.tile.drawTile();
-
-				//begin generationAnimation process for the new tiles
-				currentTile.addGenerationToQueue();
-				neighbor.tile.addGenerationToQueue();
-			}
-		}
-	}
-
-	/* 
-    Search the grid using breadth first search.
-  */
-	bfs() {
-		// if (this.searchQueue.isEmpty() && !this.solved) {
-		// 	this.solved = true;
-		// 	alert('No solution found!');
-		// 	return;
-		// } else
-		if (this.solved || this.searchQueue.isEmpty() || this.isWaitingForAnimation)
-			return;
-		console.log(this.searchQueue.size());
-		for (let i = 0; i < this.searchesPerFrame; i++) {
-			/* 
-				If the solve Queue is empty, don't try to solve.
-			  Also wait for animation to finish to prevent visual glitch
-				where the first search tile is drawn before the generation
-				aniamtion is finished.
-			*/
-
-			//else if queue is not empty, continue solving
-			const dequeuedTile = this.searchQueue.remove();
-			if (!dequeuedTile || dequeuedTile.searchVisited) return;
-			dequeuedTile.searchVisited = true;
-			dequeuedTile.addSearchAnimationToQueue();
-
-			if (dequeuedTile === this.endTile) {
-				this.state = 'solving';
-				this.isWaitingForAnimation = true;
-
-				//trace path backawards and add to array
-				const solvePath: Tile[] = [];
-				let currentTile = dequeuedTile;
-				while (currentTile.solveParent) {
-					solvePath.push(currentTile);
-					currentTile = currentTile.solveParent;
-				}
-
-				//add starting tile back in
-				solvePath.push(this.startTile);
-				//track backwards for cool effect
-				this.solvePath = solvePath.reverse();
-				return;
-			}
-
-			const neighbors = dequeuedTile.getTraversableNeighbors();
-			for (let neighbor of neighbors) {
-				if (neighbor && !neighbor.searchVisited) {
-					//keep track of parent tile to trace path back to start
-					neighbor.solveParent = dequeuedTile;
-					neighbor.currentFillColor = neighbor.initialSearchFillColor;
-					this.searchQueue.add(neighbor);
-				}
-			}
-		}
 	}
 
 	solve() {
@@ -341,15 +268,10 @@ export class GridAnimation extends Animation {
 			of that phase have been fully completed.
 		*/
 		if (!this.isWaitingForAnimation) {
-			/*
-				Timeline of major grid events:
-					1) Generating
-					2) Searching
-					3) Solving
-			*/
 			// if (this.state === 'generating') this.generate();
 			if (this.state === 'searching') {
-				this.bfs();
+				if (this.searchType === 'bfs') bfs.call(this);
+				else if (this.searchType === 'dfs') dfs.call(this);
 			}
 			if (this.state === 'solving') this.solve();
 			// if (this.state === 'complete') {}

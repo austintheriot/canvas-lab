@@ -136,6 +136,7 @@ table {
 
 /* Personal resets */
 button {
+	//reset
 	display: block;
 	border: none;
 	outline: none;
@@ -151,6 +152,10 @@ button {
 	border-radius: 3px;
 	font-size: 1rem;
 	margin: 1rem auto;
+
+	//basic styles
+	border: 1px solid black;
+	border-radius: 3px;
 }
 
 //////////////////////////////////////////
