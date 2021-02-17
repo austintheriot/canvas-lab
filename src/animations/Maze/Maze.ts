@@ -323,7 +323,7 @@ export class MazeAnimation extends Animation {
     next frame.
   */
 	runAnimationQueue() {
-		const queueLength = this.animationQueue.size();
+		const queueLength = this.animationQueue.size;
 		for (let i = 0; i < queueLength; i++) {
 			const animation = this.animationQueue.remove();
 			if (animation) animation();

@@ -34,19 +34,23 @@ class LinkedList<T> {
 
 export class Stack<T> {
 	linkedList: LinkedList<T>;
+	size: number;
 
 	constructor() {
 		this.linkedList = new LinkedList();
+		this.size = 0;
 	}
 
 	push(data: T) {
 		this.linkedList.prepend(data);
+		this.size++;
 		return this;
 	}
 
 	pop() {
 		const deletedData = this.linkedList.head ? this.linkedList.head.data : null;
 		this.linkedList.deleteHead();
+		this.size--;
 		return deletedData;
 	}
 
