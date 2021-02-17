@@ -12,18 +12,17 @@ export function bfs(this: GridAnimation) {
 		this.isWaitingForAnimation
 	)
 		return;
-	console.log(this.searchesPerFrame);
-	for (let i = 0; i < this.searchesPerFrame; i++) {
-		/* 
-      If the solve Queue is empty, don't try to solve.
-      Also wait for animation to finish to prevent visual glitch
-      where the first search tile is drawn before the generation
-      aniamtion is finished.
+	/* 
+		If the solve Queue is empty, don't try to solve.
+		Also wait for animation to finish to prevent visual glitch
+		where the first search tile is drawn before the generation
+		aniamtion is finished.
     */
 
+	for (let i = 0; i < this.searchQueue.size; i++) {
 		//else if queue is not empty, continue solving
 		const dequeuedTile = this.searchQueue.remove();
-		if (!dequeuedTile || dequeuedTile.searchVisited) return;
+		if (!dequeuedTile || dequeuedTile.searchVisited) continue;
 		dequeuedTile.searchVisited = true;
 		dequeuedTile.addSearchAnimationToQueue();
 
@@ -79,7 +78,7 @@ export function dfs(this: GridAnimation) {
 
 		//else if stack is not empty, continue solving
 		const poppedTile = this.searchStack.pop();
-		if (!poppedTile || poppedTile.searchVisited) return;
+		if (!poppedTile || poppedTile.searchVisited) continue;
 		poppedTile.searchVisited = true;
 		poppedTile.addSearchAnimationToQueue();
 

@@ -3,12 +3,13 @@ import { useAnimation } from 'hooks/useAnimation';
 import type { GridOptions } from './Grid';
 import { GridAnimation } from './Grid';
 import classes from './RenderGrid.module.scss';
+import { cloneDeep } from 'lodash';
 // import cloneDeep from 'lodash/cloneDeep';
 // import { Range } from 'components/Range/Range';
 // import { Menu } from 'components/Menu/Menu';
 
 const defaults: GridOptions = {
-	dimensions: '25',
+	dimensions: '50',
 	lineWidth: '1',
 };
 
@@ -27,6 +28,11 @@ export function RenderGrid() {
 		if (gridAnimation) {
 			if (value === 'bfs' || value === 'dfs') {
 				gridAnimation.onSearchSelection(value);
+				setOptions((prevOptions) => {
+					const newOptions = cloneDeep(prevOptions);
+					newOptions.searchType = value;
+					return newOptions;
+				});
 			}
 		}
 	};
@@ -66,23 +72,6 @@ export function RenderGrid() {
 			currentCanvas?.removeEventListener('mouseout', onMouseOut);
 		};
 	});
-
-	// const updateOptions = (
-	// 	e:
-	// 		| React.ChangeEvent<HTMLInputElement>
-	// 		| { currentTarget: { value: string } },
-	// 	key: string,
-	// 	reset = false,
-	// ) => {
-	// 	const { value } = e.currentTarget;
-	// 	console.log(value);
-	// 	setOptions((prevState) => {
-	// 		const newState: GridOptions = cloneDeep(prevState);
-	// 		newState[key] = value;
-	// 		if (reset) animation.reset(newState);
-	// 		return newState;
-	// 	});
-	// };
 
 	return (
 		<main>
