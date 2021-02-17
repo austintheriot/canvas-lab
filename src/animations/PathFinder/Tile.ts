@@ -182,22 +182,10 @@ export class Tile {
   */
 	getAllNeighbors() {
 		return [
-			{
-				tile: this.getNorthTile(),
-				direction: 'north',
-			},
-			{
-				tile: this.getEastTile(),
-				direction: 'east',
-			},
-			{
-				tile: this.getSouthTile(),
-				direction: 'south',
-			},
-			{
-				tile: this.getWestTile(),
-				direction: 'west',
-			},
+			{ tile: this.getSouthTile(), direction: 'south' },
+			{ tile: this.getEastTile(), direction: 'east' },
+			{ tile: this.getWestTile(), direction: 'west' },
+			{ tile: this.getNorthTile(), direction: 'north' },
 		] as AnyNeighbor[];
 	}
 
