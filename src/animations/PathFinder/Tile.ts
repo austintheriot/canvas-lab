@@ -52,7 +52,9 @@ export class Tile {
 	//data properties
 	generationVisited: boolean;
 	searchVisited: boolean;
-	solveParent: Tile | null;
+	searchVisited2: boolean;
+	solveParent1: Tile | null;
+	solveParent2: Tile | null;
 
 	//state
 	isAnimatingGeneration: boolean;
@@ -102,7 +104,9 @@ export class Tile {
 
 		this.generationVisited = false;
 		this.searchVisited = false;
-		this.solveParent = null;
+		this.searchVisited2 = false;
+		this.solveParent1 = null;
+		this.solveParent2 = null;
 
 		//staet: prevents flickering from competing animations
 		this.isAnimatingGeneration = false;

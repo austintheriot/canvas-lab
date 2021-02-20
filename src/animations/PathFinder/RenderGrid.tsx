@@ -24,9 +24,8 @@ export function RenderGrid() {
 
 	const handleSearchSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		const value = e.currentTarget.value;
-		console.log(value, gridAnimation);
 		if (gridAnimation) {
-			if (value === 'bfs' || value === 'dfs') {
+			if (value === 'bfs' || value === 'dfs' || value === 'biBfs') {
 				gridAnimation.onSearchSelection(value);
 				setOptions((prevOptions) => {
 					const newOptions = cloneDeep(prevOptions);
@@ -85,6 +84,7 @@ export function RenderGrid() {
 			<select onChange={handleSearchSelection} id="searchType">
 				<option value="bfs">Breadth-First Search</option>
 				<option value="dfs">Depth-First Search</option>
+				<option value="biBfs">Bidirectional Breadth-First Search</option>
 			</select>
 			<div className={classes.CanvasContainer}>{canvas}</div>
 		</main>

@@ -2,7 +2,7 @@ import { Animation } from '../Animation';
 import { Stack } from 'data structures/Stack';
 import { Queue } from 'data structures/Queue';
 import { Tile } from './Tile';
-import { bfs, dfs } from './solves';
+import { bfs, dfs, biBfs } from './solves';
 
 export interface GridOptions {
 	[key: string]: any;
@@ -13,7 +13,7 @@ export interface GridOptions {
 	searchesPerFrame?: string;
 	solvePathsPerFrame?: string;
 	waiting?: boolean;
-	searchType?: 'bfs' | 'dfs';
+	searchType?: 'bfs' | 'dfs' | 'biBfs';
 }
 
 export class GridAnimation extends Animation {
@@ -28,8 +28,10 @@ export class GridAnimation extends Animation {
 	frameCount!: number;
 	generationStack!: Stack<Tile>;
 	animationQueue!: Queue<() => void>;
-	searchQueue!: Queue<Tile>;
-	searchStack!: Stack<Tile>;
+	searchQueue1!: Queue<Tile>;
+	searchQueue2!: Queue<Tile>;
+	searchStack1!: Stack<Tile>;
+	searchStack2!: Stack<Tile>;
 	startTile!: Tile;
 	endTile!: Tile;
 	solvePath!: Tile[];
@@ -37,7 +39,7 @@ export class GridAnimation extends Animation {
 	mouse!: Uint8Array;
 	isMouseDown!: boolean;
 	solved!: boolean;
-	searchType!: 'bfs' | 'dfs';
+	searchType!: 'bfs' | 'dfs' | 'biBfs';
 
 	constructor(canvas: HTMLCanvasElement, options: GridOptions = {}) {
 		super(canvas);
@@ -55,9 +57,11 @@ export class GridAnimation extends Animation {
 		this.padding = Math.floor(Number(options.padding ?? 4)); // slightly offset so wall lines aren't cut off
 		this.generationStack = new Stack(); //used to generate the grid
 		this.animationQueue = new Queue(); //used for processing necessary animations
-		this.searchQueue = new Queue();
+		this.searchQueue1 = new Queue();
+		this.searchQueue2 = new Queue();
 		this.searchType = options?.searchType ?? 'bfs';
-		this.searchStack = new Stack();
+		this.searchStack1 = new Stack<Tile>();
+		this.searchStack2 = new Stack<Tile>();
 		this.solvePath = [];
 		this.solved = false;
 		this.frameCount = 0;
@@ -112,7 +116,7 @@ export class GridAnimation extends Animation {
 		this.firstTile.generationVisited = true;
 
 		/* 
-    Initialze searchQueue for bfs later.
+    Initialze searchQueue1 for bfs later.
     Starting tile is the top left tile.
     Ending tile is the bottom right tile.
     Even though the tiles do not yet have their end state
@@ -121,9 +125,11 @@ export class GridAnimation extends Animation {
     they will be ready.
     */
 		this.startTile = this.array[0][0];
-		this.searchQueue.add(this.startTile);
-		this.searchStack.push(this.startTile);
 		this.endTile = this.array[this.array.length - 1][this.array.length - 1];
+		this.searchQueue1.add(this.startTile);
+		this.searchQueue2.add(this.endTile);
+		this.searchStack1.push(this.startTile);
+		this.searchStack2.push(this.endTile);
 	}
 
 	onMouseMove(x: number, y: number) {
@@ -186,8 +192,7 @@ export class GridAnimation extends Animation {
 		}
 	}
 
-	onSearchSelection(searchType: 'dfs' | 'bfs') {
-		console.log('searchType: ', searchType);
+	onSearchSelection(searchType: 'dfs' | 'bfs' | 'biBfs') {
 		this.searchType = searchType;
 	}
 
@@ -272,6 +277,7 @@ export class GridAnimation extends Animation {
 			if (this.state === 'searching') {
 				if (this.searchType === 'bfs') bfs.call(this);
 				else if (this.searchType === 'dfs') dfs.call(this);
+				else if (this.searchType === 'biBfs') biBfs.call(this);
 			}
 			if (this.state === 'solving') this.solve();
 			// if (this.state === 'complete') {}
